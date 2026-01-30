@@ -1,0 +1,3 @@
+source: google gemini / nano banana
+prompt: "Create an map of all participating centers in mspaths"
+date: 2026-01-28

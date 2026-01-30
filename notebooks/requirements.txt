@@ -1,0 +1,4 @@
+marimo
+seaborn
+pandas
+tables
