@@ -24,8 +24,19 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
+
+    dropdown_sequence = mo.ui.dropdown(
+        options=["t1w", "flair"], value="t1w", label="Choose the Sequence for testing"
+    )
+
+    dropdown_sequence
+    return (dropdown_sequence,)
+
+
+@app.cell
+def _(dropdown_sequence, mo):
     import numpy as np
     import pandas as pd
     import seaborn as sns
@@ -39,6 +50,9 @@ def _(mo):
     import matplotlib.pyplot as plt
 
 
+    modality = dropdown_sequence.value
+
+
     # Define Paths and Filenames for further work / from previous work with BrainTrain
     # braindraindir = ('../../../RadBrainDL_msp/code/BrainTrain/') # source path of BrainTrain 🧠🚆 
     #                                                             # will be used to load modules 
@@ -46,11 +60,10 @@ def _(mo):
 
     # data_dir = ('../../../RadBrainDL_msp/data/')
     data_dir = ('/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/')
-    models_dir = ('/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/models/')
+    models_dir = ('models')
     # tensor_dir_test = '../../../RadBrainDL_msp/images/'
     tensor_dir_test = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images'
 
-    modality = 'flair'
     sys.path.append(braindraindir)
     try:
         from dataloaders import dataloader
@@ -76,7 +89,6 @@ def _(mo):
 
     sns.set_style("whitegrid")
     sns.set_context("talk")
-
 
     return (
         DataLoader,
@@ -106,13 +118,8 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Perform tests on the dataset. This is only needed once. Remove
+    Perform tests on the dataset. This is only needed once. Remove `outputs.csv` in case you want to re-test. Beware in this case you need more RAM.
     """)
-    return
-
-
-@app.cell
-def _():
     return
 
 
@@ -141,6 +148,7 @@ def _(
     test_dataset,
     torch,
 ):
+
     def bootstrap_auc(y_true, y_score, curve="roc", n_bootstraps=1000, seed=42):
         """Calculate AUC with bootstrap confidence intervals"""
         rng = np.random.RandomState(seed)
@@ -206,20 +214,20 @@ def _(
             prc_auc = auc(recall, precision)
             prc_mean, prc_lower, prc_upper = bootstrap_auc(y_true_array, y_score_array, curve="prc")
             pos_rate = y_true_array.mean()
-    
+
             ax = sns.lineplot(x=recall, y=precision, lw=2, label=f"{data_name} (AUC = {prc_auc:.2f} [{prc_lower:.2f}–{prc_upper:.2f}])")
-    
+
         plt.hlines(pos_rate, 0, 1, colors="gray", linestyles="--",
                    label=f"Baseline = {pos_rate:.3f}")
-    
+
         ax.set_xlim([0.0, 1.0])
         ax.set_ylim([0.0, 1.05])
         ax.set_xlabel("Recall")
         ax.set_ylabel("Precision")
         ax.set_title(f"PRC Curve ")
-    
+
         return ax
-    
+
 
 
 
@@ -242,7 +250,7 @@ def _(
 
         # Load the model and accordingly the saved state
         model = sfcn_cls.SFCN(output_dim=2).to(device)
-        checkpoint = torch.load(join(models_dir, 'sfcn', f'{column_name}_e1000_b32_im96.pth' ), map_location=device, weights_only=False)
+        checkpoint = torch.load(join(models_dir, modality, f'{column_name}_e1000_b32_im96.pth' ), map_location=device, weights_only=False)
 
 
         if isinstance(checkpoint, dict):
@@ -284,7 +292,7 @@ def _(
 
         return y_true, y_score
 
-    outfile = Path("output.csv")
+    outfile = Path(f"output_{modality}.csv")
     if outfile.exists():
         df = pd.read_csv(outfile)
     else:
@@ -307,18 +315,16 @@ def _(
     df.loc[df.name.str.contains('_wst'),'name'] = 'WST'
     df.loc[df.name.str.contains('_mdt'),'name'] = 'MDT'
 
-    
+
     # Create Auroc Curves
     plot_roc_curve(df)
-    plt.savefig("auroc_worst_progression_2z.svg")
+    plt.savefig(f"auroc_{modality}_worst_progression_2z.svg")
     plt.show()
 
     # Create PRC Curves
     plot_prc_curve(df)
-    plt.savefig("prc_worst_progression_2z.svg")
+    plt.savefig(f"prc_{modality}_worst_progression_2z.svg")
     plt.show()
-
-
 
 
     return (df,)
