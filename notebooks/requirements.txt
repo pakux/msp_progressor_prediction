@@ -2,3 +2,5 @@ marimo
 seaborn
 pandas
 tables
+torch
+scikit-learn

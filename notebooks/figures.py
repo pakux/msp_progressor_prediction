@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.19.8"
 app = marimo.App(width="full", app_title="Figures and plots")
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -24,19 +25,8 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-def _(mo):
-
-    dropdown_sequence = mo.ui.dropdown(
-        options=["t1w", "flair"], value="t1w", label="Choose the Sequence for testing"
-    )
-
-    dropdown_sequence
-    return (dropdown_sequence,)
-
-
 @app.cell
-def _(dropdown_sequence, mo):
+def _(mo):
     import numpy as np
     import pandas as pd
     import seaborn as sns
@@ -50,7 +40,6 @@ def _(dropdown_sequence, mo):
     import matplotlib.pyplot as plt
 
 
-    modality = dropdown_sequence.value
 
 
     # Define Paths and Filenames for further work / from previous work with BrainTrain
@@ -76,10 +65,6 @@ def _(dropdown_sequence, mo):
         mo.md("Could not load SFCN module! This might break things.").callout(kind="danger")
 
 
-    # Define some other variables
-    test_dataset = f'mspaths2/{modality}'  
-
-
     columns = [
         'worst_progression_pst_2z',
         'worst_progression_mdt_2z',
@@ -99,7 +84,6 @@ def _(dropdown_sequence, mo):
         data_dir,
         dataloader,
         join,
-        modality,
         models_dir,
         np,
         pd,
@@ -109,7 +93,6 @@ def _(dropdown_sequence, mo):
         sfcn_cls,
         sns,
         tensor_dir_test,
-        test_dataset,
         torch,
     )
 
@@ -127,11 +110,8 @@ def _(mo):
 def _(
     DataLoader,
     F,
-    Path,
     abspath,
     auc,
-    columns,
-    data_dir,
     dataloader,
     join,
     mo,
@@ -145,7 +125,6 @@ def _(
     sfcn_cls,
     sns,
     tensor_dir_test,
-    test_dataset,
     torch,
 ):
 
@@ -292,41 +271,10 @@ def _(
 
         return y_true, y_score
 
-    outfile = Path(f"output_{modality}.csv")
-    if outfile.exists():
-        df = pd.read_csv(outfile)
-    else:
-        df = pd.DataFrame()
 
-        for column_name in columns:  
+    df = pd.DataFrame()
 
-            # run_test should create and return y_test, y_score or write output.csv
-            y_test, y_score = run_test(column_name, data_dir, test_dataset)
-            # Save to CSV (using pandas for header and robust types)
-            df_current = pd.DataFrame({"y_test": y_test, "y_score": y_score, "name": column_name})
-
-            df = pd.concat((df, df_current), ignore_index=True)
-            df.to_csv(outfile, index=False)
-
-
-    # Rename Entries to human readable format
-    df.loc[df.name.str.contains('_pst'),'name'] = 'PST'
-    df.loc[df.name.str.contains('_cst'),'name'] = 'CST'
-    df.loc[df.name.str.contains('_wst'),'name'] = 'WST'
-    df.loc[df.name.str.contains('_mdt'),'name'] = 'MDT'
-
-
-    # Create Auroc Curves
-    plot_roc_curve(df)
-    plt.savefig(f"auroc_{modality}_worst_progression_2z.svg")
-    plt.show()
-
-    # Create PRC Curves
-    plot_prc_curve(df)
-    plt.savefig(f"prc_{modality}_worst_progression_2z.svg")
-    plt.show()
-
-    return (df,)
+    return plot_prc_curve, plot_roc_curve, run_test
 
 
 @app.cell
@@ -369,12 +317,7 @@ def _(mo):
 
 
 @app.cell
-def _(df):
-    df.loc[df.name.str.contains('_pst'),'name'] = 'PST'
-    df.loc[df.name.str.contains('_cst'),'name'] = 'CST'
-    df.loc[df.name.str.contains('_wst'),'name'] = 'WST'
-    df.loc[df.name.str.contains('_mdt'),'name'] = 'MDT'
-    df
+def _():
     return
 
 
@@ -491,9 +434,32 @@ def _(mo):
     return
 
 
-@app.cell
-def _():
-    return
+@app.cell(hide_code=True)
+def _(Path, columns, data_dir, pd, run_test):
+    _outfile = Path(f"output_t1w.csv")
+    if _outfile.exists():
+        df_t1w = pd.read_csv(_outfile)
+    else:
+        df_t1w = pd.DataFrame()
+
+        for _column_name in columns:  
+
+            # run_test should create and return y_test, y_score or write output.csv
+            _y_test, _y_score = run_test(_column_name, data_dir, 'mspaths2/t1w'  )
+            # Save to CSV (using pandas for header and robust types)
+            _df_current = pd.DataFrame({"y_test": _y_test, "y_score": _y_score, "name": _column_name})
+
+            df_t1w = pd.concat((df_t1w, _df_current), ignore_index=True)
+            df_t1w.to_csv(_outfile, index=False)
+
+
+    # Rename Entries to human readable format
+    df_t1w.loc[df_t1w.name.str.contains('_pst'),'name'] = 'PST'
+    df_t1w.loc[df_t1w.name.str.contains('_cst'),'name'] = 'CST'
+    df_t1w.loc[df_t1w.name.str.contains('_wst'),'name'] = 'WST'
+    df_t1w.loc[df_t1w.name.str.contains('_mdt'),'name'] = 'MDT'
+
+    return (df_t1w,)
 
 
 @app.cell(hide_code=True)
@@ -504,8 +470,14 @@ def _(mo):
     return
 
 
-@app.cell
-def _():
+@app.cell(hide_code=True)
+def _(df_t1w, plot_roc_curve, plt):
+    # Create Auroc Curves
+    plot_roc_curve(df_t1w)
+    plt.savefig(f"auroc_t1w_worst_progression_2z.svg")
+    plt.show()
+
+
     return
 
 
@@ -518,10 +490,57 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
+def _(df_t1w, plot_prc_curve, plt):
+    # Create PRC Curves
+    plot_prc_curve(df_t1w)
+    plt.savefig(f"prc_t1w_worst_progression_2z.svg")
+    plt.show()
+    return
+
+
+@app.cell(hide_code=True)
+def _(Path, columns, data_dir, pd, run_test):
+    _outfile = Path(f"output_flair.csv")
+    if _outfile.exists():
+        df_flair = pd.read_csv(_outfile)
+    else:
+        df_flair = pd.DataFrame()
+
+        for _column_name in columns:  
+
+            # run_test should create and return y_test, y_score or write output.csv
+            _y_test, _y_score = run_test(_column_name, data_dir, 'mspaths2/t1w'  )
+            # Save to CSV (using pandas for header and robust types)
+            _df_current = pd.DataFrame({"y_test": _y_test, "y_score": _y_score, "name": _column_name})
+
+            df_flair = pd.concat((df_flair, _df_current), ignore_index=True)
+            df_flair.to_csv(_outfile, index=False)
+
+
+    # Rename Entries to human readable format
+    df_flair.loc[df_flair.name.str.contains('_pst'),'name'] = 'PST'
+    df_flair.loc[df_flair.name.str.contains('_cst'),'name'] = 'CST'
+    df_flair.loc[df_flair.name.str.contains('_wst'),'name'] = 'WST'
+    df_flair.loc[df_flair.name.str.contains('_mdt'),'name'] = 'MDT'
+
+    return (df_flair,)
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     ## FLAIR -  AUROCs (all 4 tasks)
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(df_flair, plot_roc_curve, plt):
+    # Create Auroc Curves
+    plot_roc_curve(df_flair)
+    plt.savefig(f"auroc_flair_worst_progression_2z.svg")
+    plt.show()
+
     return
 
 
@@ -534,10 +553,147 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
+def _(df_flair, plot_prc_curve, plt):
+    # Create PRC Curves
+    plot_prc_curve(df_flair)
+    plt.savefig(f"prc_flair_worst_progression_2z.svg")
+    plt.show()
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     # Figure 3: Progression Curves
     """)
+    return
+
+
+@app.cell
+def _(KaplanMeierFitter, cfg, logrank_test, os, pd, plt):
+    def plot_kaplan_meier(
+        time_to_event,
+        event_observed,
+        prediction_scores,
+        test_cohort,
+        threshold,
+        save_path=None,
+    ):
+        """
+        Plot Kaplan-Meier curve stratified by DL model predictions
+
+        Parameters:
+        -----------
+        time_to_event : array-like
+            Time until event or censoring (in months)
+        event_observed : array-like
+            Binary labels (0: not progressing/censored, 1: progressing/event)
+        prediction_scores : array-like
+            DL model prediction scores (probabilities)
+        test_cohort : str
+            Name of test cohort for plot title
+        threshold : float
+            Threshold to stratify high-risk vs low-risk groups
+        save_path : str
+            Path to save the figure
+        """
+
+        # Create DataFrame
+        df = pd.DataFrame(
+            {
+                "time": time_to_event,
+                "event": event_observed,
+                "risk_score": prediction_scores,
+            }
+        )
+
+        # Stratify by model predictions
+        df["risk_group"] = (df["risk_score"] >= threshold).astype(int)
+
+        # Initialize Kaplan-Meier fitter
+        kmf = KaplanMeierFitter()
+
+        # Create figure
+        fig, ax = plt.subplots(figsize=(10, 7))
+
+        # Plot KM curves for each risk group
+        colors = ["#2ecc71", "#e74c3c"]  # Green for low risk, red for high risk
+
+        for idx, group in enumerate([0, 1]):
+            mask = df["risk_group"] == group
+            label = (
+                f"Low Risk (n={mask.sum()})"
+                if group == 0
+                else f"High Risk (n={mask.sum()})"
+            )
+
+            kmf.fit(df.loc[mask, "time"], df.loc[mask, "event"], label=label)
+
+            kmf.plot_survival_function(
+                ax=ax, ci_show=True, color=colors[idx], linewidth=2.5, alpha=0.8
+            )
+
+        # Perform log-rank test
+        low_risk = df[df["risk_group"] == 0]
+        high_risk = df[df["risk_group"] == 1]
+
+        results = logrank_test(
+            low_risk["time"], high_risk["time"], low_risk["event"], high_risk["event"]
+        )
+
+        # Add labels and title
+        ax.set_xlabel("Time (days)", fontsize=14, fontweight="bold")
+        ax.set_ylabel("Progression-Free survival", fontsize=14, fontweight="bold")
+        ax.set_title(
+            f"Kaplan-Meier Curve — {cfg.TRAINING_MODE} on {test_cohort}",
+            fontsize=16,
+            fontweight="bold",
+            pad=20,
+        )
+
+        # Add log-rank test results
+        p_value = results.p_value
+        test_stat = results.test_statistic
+
+        textstr = f"Log-rank test:\np = {p_value:.4f}\nχ² = {test_stat:.2f}"
+        props = dict(boxstyle="round", facecolor="wheat", alpha=0.8)
+        ax.text(
+            0.02,
+            0.02,
+            textstr,
+            transform=ax.transAxes,
+            fontsize=12,
+            verticalalignment="bottom",
+            bbox=props,
+        )
+
+        ax.legend(loc="upper right", fontsize=12, framealpha=0.9)
+        ax.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+
+        if save_path:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            plt.savefig(save_path, dpi=100, bbox_inches="tight")
+            print(f"Kaplan-Meier curve saved to {save_path}")
+        plt.close()
+
+        # Return metrics
+        km_metrics = {
+            "threshold": threshold,
+            "n_low_risk": int((df["risk_group"] == 0).sum()),
+            "n_high_risk": int((df["risk_group"] == 1).sum()),
+            "events_low_risk": int(low_risk["event"].sum()),
+            "events_high_risk": int(high_risk["event"].sum()),
+            "logrank_p_value": p_value,
+            "logrank_chi2": test_stat,
+        }
+
+        return km_metrics
+
+
+
+
     return
 
 
