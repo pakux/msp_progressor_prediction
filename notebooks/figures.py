@@ -89,7 +89,6 @@ def _(dropdown_sequence, mo):
 
     sns.set_style("whitegrid")
     sns.set_context("talk")
-
     return (
         DataLoader,
         F,
@@ -118,6 +117,7 @@ def _(dropdown_sequence, mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    # Model Tests and Performance
     Perform tests on the dataset. This is only needed once. Remove `outputs.csv` in case you want to re-test. Beware in this case you need more RAM.
     """)
     return
@@ -325,7 +325,6 @@ def _(
     plot_prc_curve(df)
     plt.savefig(f"prc_{modality}_worst_progression_2z.svg")
     plt.show()
-
 
     return (df,)
 
