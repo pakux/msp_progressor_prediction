@@ -40,37 +40,39 @@ def _(mo):
     import matplotlib.pyplot as plt
 
 
-
-
     # Define Paths and Filenames for further work / from previous work with BrainTrain
-    # braindraindir = ('../../../RadBrainDL_msp/code/BrainTrain/') # source path of BrainTrain 🧠🚆 
-    #                                                             # will be used to load modules 
-    braindraindir = ('/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/')
+    braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
+    #                                                             # will be used to load modules
+    # braindraindir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/"
 
-    # data_dir = ('../../../RadBrainDL_msp/data/')
-    data_dir = ('/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/')
-    models_dir = ('models')
-    # tensor_dir_test = '../../../RadBrainDL_msp/images/'
-    tensor_dir_test = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images'
+    data_dir = "../../../RadBrainDL_msp/data/"
+    # data_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/"
+    models_dir = "models"
+    tensor_dir_test = "../../../RadBrainDL_msp/images/"
+    # tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
 
     sys.path.append(braindraindir)
     try:
         from dataloaders import dataloader
     except ModuleNotFoundError:
-        mo.md("Could not load Braintrain! This might break things").callout(kind="danger")
+        mo.md("Could not load Braintrain! This might break things").callout(
+            kind="danger"
+        )
 
     try:
         from architectures import sfcn_cls
     except ModuleNotFoundError:
-        mo.md("Could not load SFCN module! This might break things.").callout(kind="danger")
+        mo.md("Could not load SFCN module! This might break things.").callout(
+            kind="danger"
+        )
 
 
     columns = [
-        'worst_progression_pst_2z',
-        'worst_progression_mdt_2z',
-        'worst_progression_cst_2z',
-        'worst_progression_wst_2z',
-              ]
+        "worst_progression_pst_2z",
+        "worst_progression_mdt_2z",
+        "worst_progression_cst_2z",
+        "worst_progression_wst_2z",
+    ]
 
     sns.set_style("whitegrid")
     sns.set_context("talk")
@@ -115,7 +117,6 @@ def _(
     dataloader,
     join,
     mo,
-    modality,
     models_dir,
     np,
     pd,
@@ -127,13 +128,10 @@ def _(
     tensor_dir_test,
     torch,
 ):
-
     def bootstrap_auc(y_true, y_score, curve="roc", n_bootstraps=1000, seed=42):
         """Calculate AUC with bootstrap confidence intervals"""
         rng = np.random.RandomState(seed)
         bootstrapped_scores = []
-
-
 
         for _ in range(n_bootstraps):
             indices = rng.randint(0, len(y_true), len(y_true))
@@ -144,7 +142,9 @@ def _(
                 fpr, tpr, _ = roc_curve(y_true[indices], y_score[indices])
                 score = auc(fpr, tpr)
             elif curve == "prc":
-                precision, recall, _ = precision_recall_curve(y_true[indices], y_score[indices])
+                precision, recall, _ = precision_recall_curve(
+                    y_true[indices], y_score[indices]
+                )
                 score = auc(recall, precision)
 
             bootstrapped_scores.append(score)
@@ -153,51 +153,76 @@ def _(
         upper = np.percentile(bootstrapped_scores, 97.5)
         return np.mean(bootstrapped_scores), lower, upper
 
-    def plot_roc_curve(df, y_true ="y_test", y_score="y_score", dataset="name" ):
+
+    def plot_roc_curve(df, y_true="y_test", y_score="y_score", dataset="name"):
         """
         Plot auroc curve for a dataframe
         """
-        data_names = df[dataset].unique() # retrieve different dataset-names from df (dataset-column defaults to "name")
-        f = plt.figure(figsize=(10,8))
+        data_names = df[
+            dataset
+        ].unique()  # retrieve different dataset-names from df (dataset-column defaults to "name")
+        f = plt.figure(figsize=(10, 8))
 
         for data_name in data_names:
             subset = df[df[dataset] == data_name]
             y_true_array = np.array(subset[y_true].to_list())
-            y_score_array = np.array( subset[y_score].to_list())
+            y_score_array = np.array(subset[y_score].to_list())
 
             fpr, tpr, _ = roc_curve(subset[y_true], subset[y_score])
             roc_auc = auc(fpr, tpr)
-            roc_mean, roc_lower, roc_upper = bootstrap_auc(y_true_array, y_score_array, curve="roc")
-            ax = sns.lineplot(x=fpr, y=tpr, label=f"{data_name} (AUC = {roc_auc:.2f})")
+            roc_mean, roc_lower, roc_upper = bootstrap_auc(
+                y_true_array, y_score_array, curve="roc"
+            )
+            ax = sns.lineplot(
+                x=fpr, y=tpr, label=f"{data_name} (AUC = {roc_auc:.2f})"
+            )
 
-        sns.lineplot(x=[0,1], y=[0,1], linestyle='--')
-        ax.set_xlim((0,1))
-        ax.set_ylim((0,1.05))
-        ax.set_xlabel('False Positive Rate')
-        ax.set_ylabel('True Positive Rate')
-        ax.set_title('Receiver Operationg Characteristic (ROC) Curves')
+        sns.lineplot(x=[0, 1], y=[0, 1], linestyle="--")
+        ax.set_xlim((0, 1))
+        ax.set_ylim((0, 1.05))
+        ax.set_xlabel("False Positive Rate")
+        ax.set_ylabel("True Positive Rate")
+        ax.set_title("Receiver Operationg Characteristic (ROC) Curves")
 
         # plt.show()
 
         return ax
 
-    def plot_prc_curve(df, y_true ="y_test", y_score="y_score", dataset="name" ):
+
+    def plot_prc_curve(df, y_true="y_test", y_score="y_score", dataset="name"):
         """Plot Precision-Recall curve with confidence intervals"""
-        data_names = df[dataset].unique() # retrieve different dataset-names from df (dataset-column defaults to "name")
+        data_names = df[
+            dataset
+        ].unique()  # retrieve different dataset-names from df (dataset-column defaults to "name")
         f = plt.figure(figsize=(10, 8))
         for data_name in data_names:
             subset = df[df[dataset] == data_name]
             y_true_array = np.array(subset[y_true].to_list())
-            y_score_array = np.array( subset[y_score].to_list())
-            precision, recall, _ = precision_recall_curve(y_true_array, y_score_array)
+            y_score_array = np.array(subset[y_score].to_list())
+            precision, recall, _ = precision_recall_curve(
+                y_true_array, y_score_array
+            )
             prc_auc = auc(recall, precision)
-            prc_mean, prc_lower, prc_upper = bootstrap_auc(y_true_array, y_score_array, curve="prc")
+            prc_mean, prc_lower, prc_upper = bootstrap_auc(
+                y_true_array, y_score_array, curve="prc"
+            )
             pos_rate = y_true_array.mean()
 
-            ax = sns.lineplot(x=recall, y=precision, lw=2, label=f"{data_name} (AUC = {prc_auc:.2f} [{prc_lower:.2f}–{prc_upper:.2f}])")
+            ax = sns.lineplot(
+                x=recall,
+                y=precision,
+                lw=2,
+                label=f"{data_name} (AUC = {prc_auc:.2f} [{prc_lower:.2f}–{prc_upper:.2f}])",
+            )
 
-        plt.hlines(pos_rate, 0, 1, colors="gray", linestyles="--",
-                   label=f"Baseline = {pos_rate:.3f}")
+        plt.hlines(
+            pos_rate,
+            0,
+            1,
+            colors="gray",
+            linestyles="--",
+            label=f"Baseline = {pos_rate:.3f}",
+        )
 
         ax.set_xlim([0.0, 1.0])
         ax.set_ylim([0.0, 1.05])
@@ -208,53 +233,49 @@ def _(
         return ax
 
 
-
-
-    def run_test(column_name, data_dir, test_dataset):
+    def run_test(column_name, data_dir, test_dataset, modality):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         test_dataset = dataloader.BrainDataset(
-                csv_file= abspath(join(data_dir, test_dataset, 'test', f'{column_name}.csv')),
-                root_dir=abspath(join(tensor_dir_test, 'mspaths2', modality)),
-                column_name=column_name,
-                num_rows=None,
-                num_classes=2,
-                task='classification'
-            )
+            csv_file=abspath(
+                join(data_dir, test_dataset, "test", f"{column_name}.csv")
+            ),
+            root_dir=abspath(join(tensor_dir_test, "mspaths2", modality)),
+            column_name=column_name,
+            num_rows=None,
+            num_classes=2,
+            task="classification",
+        )
 
         test_loader = DataLoader(
-            test_dataset,
-            batch_size=32,
-            num_workers=8,
-            drop_last=False)
+            test_dataset, batch_size=32, num_workers=8, drop_last=False
+        )
 
         # Load the model and accordingly the saved state
         model = sfcn_cls.SFCN(output_dim=2).to(device)
-        checkpoint = torch.load(join(models_dir, modality, f'{column_name}_e1000_b32_im96.pth' ), map_location=device, weights_only=False)
-
+        checkpoint = torch.load(
+            join(models_dir, modality, f"{column_name}_e1000_b32_im96.pth"),
+            map_location=device,
+            weights_only=False,
+        )
 
         if isinstance(checkpoint, dict):
-            if 'model_state_dict' in checkpoint:
-                model.load_state_dict(checkpoint['model_state_dict'])
-            elif 'state_dict' in checkpoint:
-                model.load_state_dict(checkpoint['state_dict'])
+            if "model_state_dict" in checkpoint:
+                model.load_state_dict(checkpoint["model_state_dict"])
+            elif "state_dict" in checkpoint:
+                model.load_state_dict(checkpoint["state_dict"])
             else:
                 model.load_state_dict(checkpoint)
         else:
             model.load_state_dict(checkpoint)
 
-
         model.eval()
-
-
 
         test_outputs_binary = []
         test_labels = []
         test_eids = []
 
-
         with torch.no_grad():
-
-            for eid, images, labels  in mo.status.progress_bar(test_loader):
+            for eid, images, labels in mo.status.progress_bar(test_loader):
                 test_eids.extend(eid)
                 images = images.to(device)
                 labels = labels.float().to(device)
@@ -265,28 +286,27 @@ def _(
                 probs = F.softmax(outputs, dim=1)
                 binary_outputs = probs[:, 1]
                 test_outputs_binary.extend(binary_outputs.tolist())
-
+        eids = np.array(test_eids).astype(int)
         y_true = np.array(test_labels).astype(int)
-        y_score = np.array(test_outputs_binary).astype(float)            
+        y_score = np.array(test_outputs_binary).astype(float)
 
-        return y_true, y_score
+        return eids, y_true, y_score
 
 
     df = pd.DataFrame()
-
     return plot_prc_curve, plot_roc_curve, run_test
 
 
 @app.cell
 def _(pd):
-    df_dist = pd.read_csv('../../../data/neuro_progressors_distance.csv')
-    df_dist.groupby('mpi').agg({'progressor_pst': 'sum'}) > 0
+    df_dist = pd.read_csv("../../../data/neuro_progressors_distance.csv")
+    df_dist.groupby("mpi").agg({"progressor_pst": "sum"}) > 0
     return (df_dist,)
 
 
 @app.cell
 def _(df_dist):
-    df_dist.groupby('mpi').agg({'progressor_pst': 'sum'}) > 0
+    df_dist.groupby("mpi").agg({"progressor_pst": "sum"}) > 0
     return
 
 
@@ -333,7 +353,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def preprocessing_pipeline(mo):
-    pipeline = mo.mermaid('''
+    pipeline = mo.mermaid("""
     graph LR
 
       A[T1w Image] --> C
@@ -351,7 +371,7 @@ def preprocessing_pipeline(mo):
       F -->|crop and resize to 96×96×96 voxel| FLAIR
       E -->|crop and resize to 96×96×96 voxel| T1w
 
-    ''')
+    """)
     pipeline
     return
 
@@ -366,7 +386,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    diagram = '''
+    diagram = """
     flowchart TD
       A["3D T1-weighted MRI] --> B[Preprocessing"]
       B --> B1{"Steps"}
@@ -420,7 +440,7 @@ def _(mo):
       K --> K1["Input: single 3D T1 -> Preproc -> Model"]
       K --> K2["Output: risk probability, predicted Δz-scores, uncertainty"]
       K --> K3["Integration: clinical dashboard / decision support"]
-    '''
+    """
 
     mo.mermaid(diagram=diagram)
     return
@@ -442,23 +462,30 @@ def _(Path, columns, data_dir, pd, run_test):
     else:
         df_t1w = pd.DataFrame()
 
-        for _column_name in columns:  
-
+        for _column_name in columns:
             # run_test should create and return y_test, y_score or write output.csv
-            _y_test, _y_score = run_test(_column_name, data_dir, 'mspaths2/t1w'  )
+            _eids, _y_test, _y_score = run_test(
+                _column_name, data_dir, "mspaths2/t1w", "t1w"
+            )
             # Save to CSV (using pandas for header and robust types)
-            _df_current = pd.DataFrame({"y_test": _y_test, "y_score": _y_score, "name": _column_name})
+            _df_current = pd.DataFrame(
+                {
+                    "eid": _eids,
+                    "y_test": _y_test,
+                    "y_score": _y_score,
+                    "name": _column_name,
+                }
+            )
 
             df_t1w = pd.concat((df_t1w, _df_current), ignore_index=True)
             df_t1w.to_csv(_outfile, index=False)
 
 
     # Rename Entries to human readable format
-    df_t1w.loc[df_t1w.name.str.contains('_pst'),'name'] = 'PST'
-    df_t1w.loc[df_t1w.name.str.contains('_cst'),'name'] = 'CST'
-    df_t1w.loc[df_t1w.name.str.contains('_wst'),'name'] = 'WST'
-    df_t1w.loc[df_t1w.name.str.contains('_mdt'),'name'] = 'MDT'
-
+    df_t1w.loc[df_t1w.name.str.contains("_pst"), "name"] = "PST"
+    df_t1w.loc[df_t1w.name.str.contains("_cst"), "name"] = "CST"
+    df_t1w.loc[df_t1w.name.str.contains("_wst"), "name"] = "WST"
+    df_t1w.loc[df_t1w.name.str.contains("_mdt"), "name"] = "MDT"
     return (df_t1w,)
 
 
@@ -476,8 +503,6 @@ def _(df_t1w, plot_roc_curve, plt):
     plot_roc_curve(df_t1w)
     plt.savefig(f"auroc_t1w_worst_progression_2z.svg")
     plt.show()
-
-
     return
 
 
@@ -506,23 +531,30 @@ def _(Path, columns, data_dir, pd, run_test):
     else:
         df_flair = pd.DataFrame()
 
-        for _column_name in columns:  
-
+        for _column_name in columns:
             # run_test should create and return y_test, y_score or write output.csv
-            _y_test, _y_score = run_test(_column_name, data_dir, 'mspaths2/t1w'  )
+            _eids, _y_test, _y_score = run_test(
+                _column_name, data_dir, "mspaths2/t1w"
+            )
             # Save to CSV (using pandas for header and robust types)
-            _df_current = pd.DataFrame({"y_test": _y_test, "y_score": _y_score, "name": _column_name})
+            _df_current = pd.DataFrame(
+                {
+                    "eid": _eids,
+                    "y_test": _y_test,
+                    "y_score": _y_score,
+                    "name": _column_name,
+                }
+            )
 
             df_flair = pd.concat((df_flair, _df_current), ignore_index=True)
             df_flair.to_csv(_outfile, index=False)
 
 
     # Rename Entries to human readable format
-    df_flair.loc[df_flair.name.str.contains('_pst'),'name'] = 'PST'
-    df_flair.loc[df_flair.name.str.contains('_cst'),'name'] = 'CST'
-    df_flair.loc[df_flair.name.str.contains('_wst'),'name'] = 'WST'
-    df_flair.loc[df_flair.name.str.contains('_mdt'),'name'] = 'MDT'
-
+    df_flair.loc[df_flair.name.str.contains("_pst"), "name"] = "PST"
+    df_flair.loc[df_flair.name.str.contains("_cst"), "name"] = "CST"
+    df_flair.loc[df_flair.name.str.contains("_wst"), "name"] = "WST"
+    df_flair.loc[df_flair.name.str.contains("_mdt"), "name"] = "MDT"
     return (df_flair,)
 
 
@@ -540,7 +572,6 @@ def _(df_flair, plot_roc_curve, plt):
     plot_roc_curve(df_flair)
     plt.savefig(f"auroc_flair_worst_progression_2z.svg")
     plt.show()
-
     return
 
 
@@ -570,7 +601,17 @@ def _(mo):
 
 
 @app.cell
-def _(KaplanMeierFitter, cfg, logrank_test, os, pd, plt):
+def _(
+    KaplanMeierFitter,
+    cfg,
+    columns,
+    join,
+    logrank_test,
+    models_dir,
+    os,
+    pd,
+    plt,
+):
     def plot_kaplan_meier(
         time_to_event,
         event_observed,
@@ -638,7 +679,10 @@ def _(KaplanMeierFitter, cfg, logrank_test, os, pd, plt):
         high_risk = df[df["risk_group"] == 1]
 
         results = logrank_test(
-            low_risk["time"], high_risk["time"], low_risk["event"], high_risk["event"]
+            low_risk["time"],
+            high_risk["time"],
+            low_risk["event"],
+            high_risk["event"],
         )
 
         # Add labels and title
@@ -692,8 +736,14 @@ def _(KaplanMeierFitter, cfg, logrank_test, os, pd, plt):
         return km_metrics
 
 
+    for _column in columns:
+        _test_df = pd.DataFrame(join(models_dir, "mspaths", "test", _column))
+    return
 
 
+@app.cell
+def _(df_t1w):
+    df_t1w
     return
 
 
