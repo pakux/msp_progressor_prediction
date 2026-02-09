@@ -1,13 +1,12 @@
 import marimo
 
-__generated_with = "0.19.8"
+__generated_with = "0.19.7"
 app = marimo.App(width="full", app_title="Figures and plots")
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
-
     return (mo,)
 
 
@@ -41,15 +40,15 @@ def _(mo):
 
 
     # Define Paths and Filenames for further work / from previous work with BrainTrain
-    braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
+    # braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
     #                                                             # will be used to load modules
-    # braindraindir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/"
+    braindraindir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/"
 
-    data_dir = "../../../RadBrainDL_msp/data/"
-    # data_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/"
+    # data_dir = "../../../RadBrainDL_msp/data/"
+    data_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/"
     models_dir = "models"
-    tensor_dir_test = "../../../RadBrainDL_msp/images/"
-    # tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
+    # tensor_dir_test = "../../../RadBrainDL_msp/images/"
+    tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
 
     sys.path.append(braindraindir)
     try:
@@ -534,7 +533,7 @@ def _(Path, columns, data_dir, pd, run_test):
         for _column_name in columns:
             # run_test should create and return y_test, y_score or write output.csv
             _eids, _y_test, _y_score = run_test(
-                _column_name, data_dir, "mspaths2/t1w"
+                _column_name, data_dir, "mspaths2/t1w", "flair"
             )
             # Save to CSV (using pandas for header and robust types)
             _df_current = pd.DataFrame(
@@ -605,13 +604,81 @@ def _(
     KaplanMeierFitter,
     cfg,
     columns,
+    data_dir,
+    df_t1w,
     join,
     logrank_test,
-    models_dir,
+    np,
     os,
     pd,
     plt,
+    roc_curve,
+    thresholds_dict,
 ):
+    def find_optimal_thresholds(y_true, y_score):
+        """
+        Find optimal thresholds using multiple methods
+
+        Returns:
+        --------
+        dict with all threshold methods and their key metrics
+        """
+        # Method 1: Youden's Index (maximizes sensitivity + specificity - 1)
+        fpr, tpr, thresholds = roc_curve(y_true, y_score)
+        youden_index = tpr - fpr
+        youden_idx = np.argmax(youden_index)
+        youden_threshold = thresholds[youden_idx]
+        youden_sensitivity = tpr[youden_idx]
+        youden_specificity = 1 - fpr[youden_idx]
+
+        # Method 2: Closest to Top-Left (minimizes distance to (0,1))
+        distances = np.sqrt((1 - tpr) ** 2 + fpr**2)
+        topleft_idx = np.argmin(distances)
+        topleft_threshold = thresholds[topleft_idx]
+        topleft_sensitivity = tpr[topleft_idx]
+        topleft_specificity = 1 - fpr[topleft_idx]
+
+        # Method 3: Balanced Accuracy (maximizes (sensitivity + specificity) / 2)
+        balanced_acc = (tpr + (1 - fpr)) / 2
+        balanced_idx = np.argmax(balanced_acc)
+        balanced_threshold = thresholds[balanced_idx]
+        balanced_sensitivity = tpr[balanced_idx]
+        balanced_specificity = 1 - fpr[balanced_idx]
+
+        # Method 4: F1 Score
+        from sklearn.metrics import precision_recall_curve
+
+        precision, recall, pr_thresholds = precision_recall_curve(y_true, y_score)
+        f1_scores = np.zeros(len(precision))
+        for i in range(len(precision)):
+            if precision[i] + recall[i] > 0:
+                f1_scores[i] = 2 * (precision[i] * recall[i]) / (precision[i] + recall[i])
+        f1_idx = np.argmax(f1_scores)
+        f1_threshold = pr_thresholds[f1_idx] if f1_idx < len(pr_thresholds) else 1.0
+        f1_precision = precision[f1_idx]
+        f1_recall = recall[f1_idx]
+
+        return {
+            "youden_threshold": youden_threshold,
+            "youden_sensitivity": youden_sensitivity,
+            "youden_specificity": youden_specificity,
+            "youden_index": youden_index[youden_idx],
+            "topleft_threshold": topleft_threshold,
+            "topleft_sensitivity": topleft_sensitivity,
+            "topleft_specificity": topleft_specificity,
+            "balanced_threshold": balanced_threshold,
+            "balanced_sensitivity": balanced_sensitivity,
+            "balanced_specificity": balanced_specificity,
+            "balanced_accuracy": balanced_acc[balanced_idx],
+            "f1_threshold": f1_threshold,
+            "f1_precision": f1_precision,
+            "f1_recall": f1_recall,
+            "f1_score": f1_scores[f1_idx],
+        }
+
+
+
+
     def plot_kaplan_meier(
         time_to_event,
         event_observed,
@@ -737,7 +804,35 @@ def _(
 
 
     for _column in columns:
-        _test_df = pd.DataFrame(join(models_dir, "mspaths", "test", _column))
+
+        _data_df = pd.read_csv(join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv"))
+
+        col_mapping = {"_pst": "PST", "_cst": "CST", "_wst": "WST", "_mdt": "MDT"}
+        shortname  = next((v for k, v in col_mapping.items() if k in _column), None)
+    
+        km_data = _data_df.merge(df_t1w.query(f'name == "{shortname}"'))
+    
+        time_to_event = km_data["time"].values
+        event_observed = km_data["y_test"].values
+        prediction_scores = km_data["y_score"].values
+        km_threshold = thresholds_dict["youden_threshold"]   
+        km_path = join(f"{_shortname}_T1w.svg")
+
+
+    
+    
+    
+        km_metrics = plot_kaplan_meier(
+                    time_to_event,
+                    event_observed,
+                    prediction_scores,
+                    "T1w",
+                    threshold=km_threshold,
+                    save_path=km_path,
+                )
+
+
+
     return
 
 
