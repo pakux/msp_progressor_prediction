@@ -30,14 +30,17 @@ def _(mo):
     import pandas as pd
     import seaborn as sns
     import sys
-    from os.path import join, abspath
+    from os.path import join, abspath, dirname
+    from os import makedirs
     import torch
     import torch.nn.functional as F
     from torch.utils.data import DataLoader
     from pathlib import Path
     from sklearn.metrics import roc_curve, auc, precision_recall_curve
     import matplotlib.pyplot as plt
-
+    from lifelines import KaplanMeierFitter
+    from lifelines.statistics import logrank_test
+    from lifelines.plotting import add_at_risk_counts
 
     # Define Paths and Filenames for further work / from previous work with BrainTrain
     # braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
@@ -78,13 +81,17 @@ def _(mo):
     return (
         DataLoader,
         F,
+        KaplanMeierFitter,
         Path,
         abspath,
         auc,
         columns,
         data_dir,
         dataloader,
+        dirname,
         join,
+        logrank_test,
+        makedirs,
         models_dir,
         np,
         pd,
@@ -595,25 +602,25 @@ def _(df_flair, plot_prc_curve, plt):
 def _(mo):
     mo.md(r"""
     # Figure 3: Progression Curves
+
+    ## Kaplan Meier Curves for T1w
     """)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     KaplanMeierFitter,
-    cfg,
     columns,
     data_dir,
-    df_t1w,
+    dirname,
     join,
     logrank_test,
+    makedirs,
     np,
-    os,
     pd,
     plt,
     roc_curve,
-    thresholds_dict,
 ):
     def find_optimal_thresholds(y_true, y_score):
         """
@@ -725,7 +732,7 @@ def _(
         fig, ax = plt.subplots(figsize=(10, 7))
 
         # Plot KM curves for each risk group
-        colors = ["#2ecc71", "#e74c3c"]  # Green for low risk, red for high risk
+        colors = ["#2ecc71", "#F39C12"]  # Green for low risk, red for high risk
 
         for idx, group in enumerate([0, 1]):
             mask = df["risk_group"] == group
@@ -738,7 +745,7 @@ def _(
             kmf.fit(df.loc[mask, "time"], df.loc[mask, "event"], label=label)
 
             kmf.plot_survival_function(
-                ax=ax, ci_show=True, color=colors[idx], linewidth=2.5, alpha=0.8
+                ax=ax, ci_show=True, color=colors[idx], linewidth=2.5, alpha=0.5
             )
 
         # Perform log-rank test
@@ -756,7 +763,7 @@ def _(
         ax.set_xlabel("Time (days)", fontsize=14, fontweight="bold")
         ax.set_ylabel("Progression-Free survival", fontsize=14, fontweight="bold")
         ax.set_title(
-            f"Kaplan-Meier Curve — {cfg.TRAINING_MODE} on {test_cohort}",
+            f"Kaplan-Meier Curve  on {test_cohort}",
             fontsize=16,
             fontweight="bold",
             pad=20,
@@ -784,10 +791,11 @@ def _(
         plt.tight_layout()
 
         if save_path:
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            if len(dirname(save_path)) > 0:
+                makedirs(dirname(save_path), exist_ok=True)
             plt.savefig(save_path, dpi=100, bbox_inches="tight")
             print(f"Kaplan-Meier curve saved to {save_path}")
-        plt.close()
+    
 
         # Return metrics
         km_metrics = {
@@ -802,36 +810,61 @@ def _(
 
         return km_metrics
 
-
-    for _column in columns:
-
-        _data_df = pd.read_csv(join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv"))
-
+    def kmplots(df, name):
         col_mapping = {"_pst": "PST", "_cst": "CST", "_wst": "WST", "_mdt": "MDT"}
-        shortname  = next((v for k, v in col_mapping.items() if k in _column), None)
+        for _column in columns:
     
-        km_data = _data_df.merge(df_t1w.query(f'name == "{shortname}"'))
+            _data_df = pd.read_csv(join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv"))
     
-        time_to_event = km_data["time"].values
-        event_observed = km_data["y_test"].values
-        prediction_scores = km_data["y_score"].values
-        km_threshold = thresholds_dict["youden_threshold"]   
-        km_path = join(f"{_shortname}_T1w.svg")
+            shortname  = next((v for k, v in col_mapping.items() if k in _column), None)
+    
+            km_data = _data_df.merge(df.query(f'name == "{shortname}"'))
+            km_data.time.fillna(0, inplace=True)
+            thresholds_dict = find_optimal_thresholds(km_data['y_test'].values, km_data['y_score'].values)
+            time_to_event = km_data["time"].values
+            event_observed = km_data["y_test"].values
+            prediction_scores = km_data["y_score"].values
+            km_threshold = thresholds_dict["youden_threshold"]
+            km_path = join(f"{shortname}_{name}.svg")
+    
+            km_metrics = plot_kaplan_meier(
+                        time_to_event,
+                        event_observed,
+                        prediction_scores,
+                        f"{shortname} - {name}",
+                        threshold=km_threshold,
+                        save_path=km_path,
+                    )
+    
+            plt.show()
 
 
-    
-    
-    
-        km_metrics = plot_kaplan_meier(
-                    time_to_event,
-                    event_observed,
-                    prediction_scores,
-                    "T1w",
-                    threshold=km_threshold,
-                    save_path=km_path,
-                )
+    return (kmplots,)
 
 
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _(df_t1w, kmplots):
+    kmplots(df_t1w, 'T1w')
+
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## Kaplan Meier Curves for FLAIR
+    """)
+    return
+
+
+@app.cell
+def _(df_flair, kmplots):
+    kmplots(df_flair, 'FLAIR')
 
     return
 
