@@ -41,17 +41,19 @@ def _(mo):
     from lifelines import KaplanMeierFitter
     from lifelines.statistics import logrank_test
     from lifelines.plotting import add_at_risk_counts
+    from scipy.stats import ks_2samp
+    from matplotlib.colors import ListedColormap
 
     # Define Paths and Filenames for further work / from previous work with BrainTrain
     # braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
     #                                                             # will be used to load modules
-    braindraindir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/"
-
+    braindraindir = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/'
+    patientstable = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/baseline_characteristics.csv'
     # data_dir = "../../../RadBrainDL_msp/data/"
-    data_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/"
-    models_dir = "models"
+    data_dir = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/'
+    models_dir = 'models'
     # tensor_dir_test = "../../../RadBrainDL_msp/images/"
-    tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
+    tensor_dir_test = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images'
 
     sys.path.append(braindraindir)
     try:
@@ -76,8 +78,17 @@ def _(mo):
         "worst_progression_wst_2z",
     ]
 
+
+
+    palette = sns.color_palette("tab10",3)  
+    cmap = ListedColormap(palette)
+
+    sns.set_palette('tab10')
     sns.set_style("whitegrid")
     sns.set_context("talk")
+
+
+    dataset_order=['training', 'validation', 'test']
     return (
         DataLoader,
         F,
@@ -85,15 +96,20 @@ def _(mo):
         Path,
         abspath,
         auc,
+        cmap,
         columns,
         data_dir,
         dataloader,
+        dataset_order,
         dirname,
         join,
+        ks_2samp,
         logrank_test,
         makedirs,
         models_dir,
         np,
+        palette,
+        patientstable,
         pd,
         plt,
         precision_recall_curve,
@@ -303,24 +319,140 @@ def _(
     return plot_prc_curve, plot_roc_curve, run_test
 
 
-@app.cell
-def _(pd):
-    df_dist = pd.read_csv("../../../data/neuro_progressors_distance.csv")
-    df_dist.groupby("mpi").agg({"progressor_pst": "sum"}) > 0
-    return (df_dist,)
-
-
-@app.cell
-def _(df_dist):
-    df_dist.groupby("mpi").agg({"progressor_pst": "sum"}) > 0
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     # Demographics
     """)
+    return
+
+
+@app.cell
+def _(columns, data_dir, dataset_order, join, patientstable, pd):
+    # read patients characteristics table:
+    pat_df = pd.read_csv(patientstable, dtype={'site_x': str})
+    pat_df.site_x = pat_df.site_x.str.replace('.0','')
+    # get list of patients in test-dataset
+    test_ids = pd.read_csv(join(data_dir, 'mspaths2', 't1w', 'test', f'{columns[0]}.csv')).eid.to_list()
+
+    # get list of patients in training-dataset
+    training_ids = pd.read_csv(join(data_dir, 'mspaths', 't1w', 'train',  f'{columns[0]}.csv')).eid.to_list()
+
+    # get list of patients in validation-dataset
+    validation_ids = pd.read_csv(join(data_dir, 'mspaths', 't1w', 'val',  f'{columns[0]}.csv')).eid.to_list()
+
+    pat_df.loc[pat_df.eid.isin(training_ids), 'dataset'] = 'training'
+    pat_df.loc[pat_df.eid.isin(validation_ids), 'dataset'] = 'validation'
+    pat_df.loc[pat_df.eid.isin(test_ids), 'dataset'] = 'test'
+
+    pat_df['dataset'] = pd.Categorical(pat_df['dataset'], categories=dataset_order, ordered=True)
+    return (pat_df,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Patient distribution
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(cmap, pat_df, pd, plt):
+
+
+
+    _ax = pd.crosstab(pat_df['site_x'], pat_df['dataset']).plot(kind='barh', stacked=True, cmap=cmap)
+
+    _ax.set_xlabel('number of patients')
+    _ax.set_ylabel('Center ID')
+
+
+    plt.savefig('test_train_center_split.svg')
+    plt.show()
+    return
+
+
+@app.cell(hide_code=True)
+def _(pat_df, pd, plt):
+
+    _colors = ["#EF233C", "#2B2D42" ]
+
+    _ax = pd.crosstab(pat_df['dataset'], pat_df['sex']).plot(kind='barh', stacked=True, legend=False, color=_colors)
+
+    _ax.set_xlabel('Number of Subjects')
+    _ax.set_ylabel('')
+    # _ax.set_yticklabels(['Val', 'Train', 'Test'])
+    plt.legend(title='', loc='upper right', labels=['female', 'male'], bbox_to_anchor=(1.2,1) )
+
+    plt.tight_layout()
+    plt.savefig('test_train_sex_split.svg')
+    plt.show()
+    return
+
+
+@app.cell(hide_code=True)
+def _(dataset_order, ks_2samp, palette, pat_df, plt, sns):
+
+    ages_train = pat_df.loc[pat_df['dataset']=='training','age']
+    ages_test  = pat_df.loc[pat_df['dataset']=='test','age']
+    ks_stat, p = ks_2samp(ages_train, ages_test)
+
+    print('KS p-value:', p)
+
+    plt.figure(figsize=(8,5))
+    sns.violinplot(data=pat_df, x='dataset', y='age', inner='box', hue='dataset', cut=0, hue_order=dataset_order, palette=palette )
+    plt.xlabel('Dataset')
+    plt.ylabel('Age')
+    plt.title('')
+
+    plt.legend(title='', loc='upper right', bbox_to_anchor=(1.5,1) )
+
+    plt.tight_layout()
+
+    plt.savefig('dataset_age_distribution.svg')
+    plt.show()
+    return
+
+
+@app.cell(disabled=True)
+def _(pat_df, plt, sns):
+    from scipy import stats
+    import scikit_posthocs as sp  # für paarweise Dunn-Tests; optional
+
+    # Annahme: pat_df bereits geladen mit Spalten 'age','sex','dataset'
+    # Sicherstellen, dass dataset-Kategorien in gewünschter Reihenfolge sind:
+    order = ['training', 'validation', 'test']
+    # pat_df['dataset'] = pd.Categorical(pat_df['dataset'], categories=order, ordered=True)
+
+    # 1) Violinplot mit innerem Boxplot
+    sns.violinplot(data=pat_df, x='dataset', y='age', order=order, inner='box', hue='dataset', )
+    plt.xlabel('Dataset')
+    plt.ylabel('Age')
+    plt.title('')
+
+    # 2) Kruskal-Wallis H-Test (global)
+    groups = [pat_df.loc[pat_df['dataset']==g, 'age'].dropna().values for g in order]
+    kw_stat, kw_p = stats.kruskal(*groups)
+
+    # Anzeige des Testergebnisses im Plot
+    props = dict(boxstyle='round', facecolor='white', alpha=0.8)
+    text = f'Kruskal-Wallis H={kw_stat:.3f}\np={kw_p:.3e}'
+    plt.gca().text(0.02, 0.98, text, transform=plt.gca().transAxes, fontsize=10,
+                   verticalalignment='top', bbox=props)
+    plt.legend(title='', loc='upper right', bbox_to_anchor=(1.5,1) )
+
+    plt.tight_layout()
+    plt.show()
+
+    # 3) Optional: paarweise Tests (Dunn) mit Bonferroni-Korrektur, nur anzeigen falls global signifikant
+    if kw_p < 0.05:
+        # Benötigt scikit-posthocs: pip install scikit-posthocs
+        data_for_posthoc = pat_df[['age','dataset']].dropna()
+        dunn = sp.posthoc_dunn(data_for_posthoc, val_col='age', group_col='dataset', p_adjust='bonferroni')
+        print('Dunn post-hoc (Bonferroni-korrigierte p-Werte):\n', dunn)
+    else:
+        print('Kruskal-Wallis nicht signifikant (p >= 0.05); keine paarweisen Tests durchgeführt.')
     return
 
 
@@ -685,7 +817,6 @@ def _(
 
 
 
-
     def plot_kaplan_meier(
         time_to_event,
         event_observed,
@@ -695,7 +826,7 @@ def _(
         save_path=None,
     ):
         """
-        Plot Kaplan-Meier curve stratified by DL model predictions
+        Plot Kaplan-Meier curve stratified by DL model predictions with Hazard Ratio.
 
         Parameters:
         -----------
@@ -732,7 +863,7 @@ def _(
         fig, ax = plt.subplots(figsize=(10, 7))
 
         # Plot KM curves for each risk group
-        colors = ["#2ecc71", "#F39C12"]  # Green for low risk, red for high risk
+        colors = ["#1671bc", "#c11b0f"]  # Blue for low risk, red for high risk
 
         for idx, group in enumerate([0, 1]):
             mask = df["risk_group"] == group
@@ -759,21 +890,28 @@ def _(
             high_risk["event"],
         )
 
-        # Add labels and title
-        ax.set_xlabel("Time (days)", fontsize=14, fontweight="bold")
-        ax.set_ylabel("Progression-Free survival", fontsize=14, fontweight="bold")
-        ax.set_title(
-            f"Kaplan-Meier Curve  on {test_cohort}",
-            fontsize=16,
-            fontweight="bold",
-            pad=20,
+        # --- Add Hazard Ratio calculation using Cox Proportional Hazards Model ---
+        from lifelines import CoxPHFitter
+
+        df_cox = df[["time", "event", "risk_group"]].copy()
+        df_cox.columns = ["T", "E", "risk_group"]
+
+        cph = CoxPHFitter()
+        cph.fit(df_cox, duration_col="T", event_col="E", strata=None)
+
+        hr = cph.hazard_ratios_.iloc[0]
+        hr_ci = cph.confidence_intervals_.iloc[0]
+
+        # Prepare text for the plot
+        textstr = (
+            f"Log-rank test:\n"
+            f"p = {results.p_value:.4f}\n"
+            f"χ² = {results.test_statistic:.2f}\n\n"
+            f"Hazard Ratio (HR):\n"
+            f"HR = {hr:.2f} "
+            f"[{hr_ci[0]:.2f} – {hr_ci[1]:.2f}]"
         )
 
-        # Add log-rank test results
-        p_value = results.p_value
-        test_stat = results.test_statistic
-
-        textstr = f"Log-rank test:\np = {p_value:.4f}\nχ² = {test_stat:.2f}"
         props = dict(boxstyle="round", facecolor="wheat", alpha=0.8)
         ax.text(
             0.02,
@@ -783,6 +921,16 @@ def _(
             fontsize=12,
             verticalalignment="bottom",
             bbox=props,
+        )
+
+        # Add labels and title
+        ax.set_xlabel("Time (days)", fontsize=14, fontweight="bold")
+        ax.set_ylabel("Progression-Free Survival", fontsize=14, fontweight="bold")
+        ax.set_title(
+            f"Kaplan-Meier Curve on {test_cohort}",
+            fontsize=16,
+            fontweight="bold",
+            pad=20,
         )
 
         ax.legend(loc="upper right", fontsize=12, framealpha=0.9)
@@ -795,38 +943,45 @@ def _(
                 makedirs(dirname(save_path), exist_ok=True)
             plt.savefig(save_path, dpi=100, bbox_inches="tight")
             print(f"Kaplan-Meier curve saved to {save_path}")
-    
 
-        # Return metrics
+        # Return metrics including HR
         km_metrics = {
             "threshold": threshold,
             "n_low_risk": int((df["risk_group"] == 0).sum()),
             "n_high_risk": int((df["risk_group"] == 1).sum()),
             "events_low_risk": int(low_risk["event"].sum()),
             "events_high_risk": int(high_risk["event"].sum()),
-            "logrank_p_value": p_value,
-            "logrank_chi2": test_stat,
+            "logrank_p_value": results.p_value,
+            "logrank_chi2": results.test_statistic,
+            "hazard_ratio": hr,
+            "hazard_ratio_95ci_lower": hr_ci[0],
+            "hazard_ratio_95ci_upper": hr_ci[1],
         }
 
         return km_metrics
 
+
+
+
     def kmplots(df, name):
         col_mapping = {"_pst": "PST", "_cst": "CST", "_wst": "WST", "_mdt": "MDT"}
         for _column in columns:
-    
+
             _data_df = pd.read_csv(join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv"))
-    
+            _data_df = _data_df.query(f'not(time <= 0)')
+
             shortname  = next((v for k, v in col_mapping.items() if k in _column), None)
-    
+
             km_data = _data_df.merge(df.query(f'name == "{shortname}"'))
-            km_data.time.fillna(0, inplace=True)
+            # km_data.time.fillna(0, inplace=True)
+            km_data.dropna(subset='time', inplace=True)
             thresholds_dict = find_optimal_thresholds(km_data['y_test'].values, km_data['y_score'].values)
             time_to_event = km_data["time"].values
             event_observed = km_data["y_test"].values
             prediction_scores = km_data["y_score"].values
             km_threshold = thresholds_dict["youden_threshold"]
             km_path = join(f"{shortname}_{name}.svg")
-    
+
             km_metrics = plot_kaplan_meier(
                         time_to_event,
                         event_observed,
@@ -835,22 +990,20 @@ def _(
                         threshold=km_threshold,
                         save_path=km_path,
                     )
-    
+
             plt.show()
-
-
     return (kmplots,)
 
 
 @app.cell
-def _():
+def _(df_t1w):
+    df_t1w
     return
 
 
 @app.cell
 def _(df_t1w, kmplots):
     kmplots(df_t1w, 'T1w')
-
     return
 
 
@@ -865,7 +1018,12 @@ def _(mo):
 @app.cell
 def _(df_flair, kmplots):
     kmplots(df_flair, 'FLAIR')
+    return
 
+
+@app.cell
+def _(df_t1w):
+    df_t1w
     return
 
 
