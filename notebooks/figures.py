@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.19.8"
 app = marimo.App(width="full", app_title="Figures and plots")
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -45,12 +46,13 @@ def _(mo):
     from matplotlib.colors import ListedColormap
 
     # Define Paths and Filenames for further work / from previous work with BrainTrain
-    # braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
+    braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
     #                                                             # will be used to load modules
-    braindraindir = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/'
-    patientstable = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/baseline_characteristics.csv'
-    # data_dir = "../../../RadBrainDL_msp/data/"
-    data_dir = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/'
+    # braindraindir = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/'
+    # patientstable = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/baseline_characteristics.csv'
+    patientstable = '../../../RadBrainDL_msp/baseline_characteristics.csv'
+    data_dir = "../../../RadBrainDL_msp/data/"
+    # data_dir = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/'
     models_dir = 'models'
     # tensor_dir_test = "../../../RadBrainDL_msp/images/"
     tensor_dir_test = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images'
@@ -63,12 +65,12 @@ def _(mo):
             kind="danger"
         )
 
-    try:
-        from architectures import sfcn_cls
-    except ModuleNotFoundError:
-        mo.md("Could not load SFCN module! This might break things.").callout(
-            kind="danger"
-        )
+    # try:
+    #    from architectures import sfcn_cls
+    #except ModuleNotFoundError:
+    #    mo.md("Could not load SFCN module! This might break things.").callout(
+    #        kind="danger"
+    #    )
 
 
     columns = [
@@ -114,7 +116,6 @@ def _(mo):
         plt,
         precision_recall_curve,
         roc_curve,
-        sfcn_cls,
         sns,
         tensor_dir_test,
         torch,
@@ -995,6 +996,7 @@ def _(
                     )
 
             plt.show()
+
     return (kmplots,)
 
 
@@ -1041,6 +1043,39 @@ def _(mo):
     mo.md(r"""
     # Figure 4: Heatmaps
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Figure 5: Regional attention
+    """)
+    return
+
+
+@app.cell
+def _(pd):
+    attention_maps_df = pd.DataFrame()
+
+    test_names = ['cst', 'wst', 'mdt', 'pst']
+    modalities = ['T1w', 'FLAIR']
+    for test_name in test_names:
+        for modality in modalities:
+            _df = pd.read_csv(f'regional_attention/regional_scores_{test_name}_{modality}.csv')
+            _df['modality'] = modality
+            _df['test'] = test_name
+            attention_maps_df = pd.concat((attention_maps_df, _df), ignore_index=True)
+
+
+
+        
+    return (attention_maps_df,)
+
+
+@app.cell
+def _(attention_maps_df):
+    attention_maps_df.pivot(index=['eid', 'modality', 'test'], columns=['Precentral_L' , 'Precentral_R'])
     return
 
 
