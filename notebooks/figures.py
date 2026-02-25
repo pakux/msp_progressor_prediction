@@ -346,6 +346,9 @@ def _(columns, data_dir, dataset_order, join, patientstable, pd):
     pat_df.loc[pat_df.eid.isin(test_ids), 'dataset'] = 'test'
 
     pat_df['dataset'] = pd.Categorical(pat_df['dataset'], categories=dataset_order, ordered=True)
+
+
+    len(pat_df.eid.unique())
     return (pat_df,)
 
 
