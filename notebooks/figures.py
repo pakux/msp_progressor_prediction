@@ -1,13 +1,12 @@
 import marimo
 
-__generated_with = "0.19.8"
+__generated_with = "0.19.7"
 app = marimo.App(width="full", app_title="Figures and plots")
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
-
     return (mo,)
 
 
@@ -46,13 +45,13 @@ def _(mo):
     from matplotlib.colors import ListedColormap
 
     # Define Paths and Filenames for further work / from previous work with BrainTrain
-    braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
+    #braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
     #                                                             # will be used to load modules
-    # braindraindir = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/'
-    # patientstable = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/baseline_characteristics.csv'
+    braindraindir = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/'
+    patientstable = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/baseline_characteristics.csv'
     patientstable = '../../../RadBrainDL_msp/baseline_characteristics.csv'
-    data_dir = "../../../RadBrainDL_msp/data/"
-    # data_dir = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/'
+    # data_dir = "../../../RadBrainDL_msp/data/"
+    data_dir = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/'
     models_dir = 'models'
     # tensor_dir_test = "../../../RadBrainDL_msp/images/"
     tensor_dir_test = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images'
@@ -996,7 +995,6 @@ def _(
                     )
 
             plt.show()
-
     return (kmplots,)
 
 
@@ -1062,20 +1060,85 @@ def _(pd):
     modalities = ['T1w', 'FLAIR']
     for test_name in test_names:
         for modality in modalities:
-            _df = pd.read_csv(f'regional_attention/regional_scores_{test_name}_{modality}.csv')
+            _df = pd.read_csv(f'regional_attention/regional_scores_{test_name}_{modality}.csv', index_col='eid')
+                
             _df['modality'] = modality
             _df['test'] = test_name
+
             attention_maps_df = pd.concat((attention_maps_df, _df), ignore_index=True)
 
+    attention_maps_df.columns
 
 
-        
     return (attention_maps_df,)
 
 
 @app.cell
+def _():
+    # attention_maps_df.pivot(index=['eid', 'modality', 'test'], columns=['Precentral_L' , 'Precentral_R'])
+
+
+
+    return
+
+
+@app.cell
 def _(attention_maps_df):
-    attention_maps_df.pivot(index=['eid', 'modality', 'test'], columns=['Precentral_L' , 'Precentral_R'])
+    def get_top_100_per_column(df, region_columns, groupby_cols=['modality', 'test']):
+        """Get top 100 rows per region column, grouped by modality and test."""
+        results = {}
+    
+        for region in region_columns:
+            # Sort by region value descending and get top 100 per group
+            top_100 = (
+                df.sort_values(region, ascending=False)
+                .groupby(groupby_cols, group_keys=False)
+                .head(100)
+                .copy()
+            )
+            results[region] = top_100
+    
+        return results
+
+    # Get all region columns (excluding 'modality' and 'test')
+    region_columns = [col for col in attention_maps_df.columns if col not in ['modality', 'test']]
+
+    # Get top 100 per region
+    top_100_results = get_top_100_per_column(attention_maps_df, region_columns)
+
+    print(f"Processed {len(top_100_results)} regions")
+    print(f"Sample region: {list(top_100_results.keys())[0]}")
+    return (top_100_results,)
+
+
+@app.cell
+def _(top_100_results):
+    # Example: Access top 100 results for a specific region
+    sample_region = "Precentral_L"
+    top_100_sample = top_100_results[sample_region]
+
+    print(f"Top 100 results for {sample_region}:")
+    print(f"Total rows: {len(top_100_sample)}")
+    print(f"\nBreakdown by modality and test:")
+    print(top_100_sample.groupby(['modality', 'test']).size())
+
+    print(f"\nFirst few rows of {sample_region} sorted by value:")
+    print(top_100_sample.head(10))
+    return
+
+
+@app.cell
+def _(Path, top_100_results):
+    # If you want to export all top 100 results to CSV files
+    output_dir = Path('top_100_results')
+    output_dir.mkdir(exist_ok=True)
+
+    for region_name, df_subset in top_100_results.items():
+        filename = output_dir / f"top_100_{region_name}.csv"
+        df_subset.to_csv(filename, index=False)
+        print(f"Saved: {filename}")
+
+    print(f"\nAll files saved to {output_dir.absolute()}")
     return
 
 
