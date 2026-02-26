@@ -30,7 +30,7 @@ def _(mo):
     import pandas as pd
     import seaborn as sns
     import sys
-    from os.path import join, abspath, dirname
+    from os.path import join, abspath, dirname,basename
     from os import makedirs
     import torch
     import torch.nn.functional as F
@@ -43,6 +43,9 @@ def _(mo):
     from lifelines.plotting import add_at_risk_counts
     from scipy.stats import ks_2samp
     from matplotlib.colors import ListedColormap
+    from nilearn.plotting import plot_anat, plot_img
+    import cmcrameri
+    from glob import glob
 
     # Define Paths and Filenames for further work / from previous work with BrainTrain
     #braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
@@ -97,12 +100,15 @@ def _(mo):
         Path,
         abspath,
         auc,
+        basename,
         cmap,
+        cmcrameri,
         columns,
         data_dir,
         dataloader,
         dataset_order,
         dirname,
+        glob,
         join,
         ks_2samp,
         logrank_test,
@@ -112,6 +118,7 @@ def _(mo):
         palette,
         patientstable,
         pd,
+        plot_img,
         plt,
         precision_recall_curve,
         roc_curve,
@@ -1061,24 +1068,19 @@ def _(pd):
     for test_name in test_names:
         for modality in modalities:
             _df = pd.read_csv(f'regional_attention/regional_scores_{test_name}_{modality}.csv', index_col='eid')
-                
+
             _df['modality'] = modality
             _df['test'] = test_name
 
             attention_maps_df = pd.concat((attention_maps_df, _df), ignore_index=True)
 
     attention_maps_df.columns
-
-
-    return (attention_maps_df,)
+    return attention_maps_df, modalities, test_names
 
 
 @app.cell
 def _():
     # attention_maps_df.pivot(index=['eid', 'modality', 'test'], columns=['Precentral_L' , 'Precentral_R'])
-
-
-
     return
 
 
@@ -1087,7 +1089,7 @@ def _(attention_maps_df):
     def get_top_100_per_column(df, region_columns, groupby_cols=['modality', 'test']):
         """Get top 100 rows per region column, grouped by modality and test."""
         results = {}
-    
+
         for region in region_columns:
             # Sort by region value descending and get top 100 per group
             top_100 = (
@@ -1097,7 +1099,7 @@ def _(attention_maps_df):
                 .copy()
             )
             results[region] = top_100
-    
+
         return results
 
     # Get all region columns (excluding 'modality' and 'test')
@@ -1128,18 +1130,84 @@ def _(top_100_results):
 
 
 @app.cell
-def _(Path, top_100_results):
-    # If you want to export all top 100 results to CSV files
-    output_dir = Path('top_100_results')
-    output_dir.mkdir(exist_ok=True)
-
-    for region_name, df_subset in top_100_results.items():
-        filename = output_dir / f"top_100_{region_name}.csv"
-        df_subset.to_csv(filename, index=False)
-        print(f"Saved: {filename}")
-
-    print(f"\nAll files saved to {output_dir.absolute()}")
+def _(cmcrameri, plt):
+    cmcrameri.show_cmaps()
+    plt.show()
     return
+
+
+@app.cell
+def _(basename, cmcrameri, glob, plot_img, plt, re):
+    #ToDo:  Change Colormaps to scientific mor acurate (batlow)
+
+    heatmap = glob('flair-true-pos_same-t1w/sub-*_mod-{modality}_desc-{test}_heatmap.nii.gz')
+    if len(heatmap) != 1:
+        heatmap = basename(heatmap[0])
+
+    subject = re.sub('sub-()')
+
+
+    plot_img(img='flair-true-pos_same-t1w/sub-500001599_mod-T1w_desc-PST_heatmap.nii.gz',
+             bg_img='flair-true-pos_same-t1w/sub-500001599_T1w.nii.gz', 
+             cut_coords=[31,38,44,50,60],
+             display_mode='z', 
+             radiological=True, 
+             cmap=cmcrameri.cm.roma_r, 
+             transparency='flair-true-pos_same-t1w/sub-500001599_mod-T1w_desc-PST_heatmap.nii.gz', 
+             resampling_interpolation="continuous",
+             transparency_range=[0,0.1],
+             cbar_tick_format='%.2f',
+             black_bg=True,
+             title='PST T1w'
+            )
+
+    plt.show()
+    return
+
+
+@app.cell
+def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
+
+    import re
+
+    pattern = re.compile(r"sub-(?P<sub>[^_]+)_mod-.*_desc-.*_heatmap\.nii\.gz")
+    # m = pattern.search("sub-ABC123_mod-{modality}_desc-{test}_heatmap.nii.gz")
+
+    _modality = 'FLAIR'
+    _test = 'PST'
+
+    for _modality in modalities:
+        for _test in test_names:
+            print(f'{_modality} for test {_test}')
+            heatmap = basename(glob(f'flair-true-pos_same-t1w/sub-*_mod-{_modality}_desc-{_test.upper()}_heatmap.nii.gz')[0])
+            m = pattern.search(heatmap)
+            subject = m.group("sub")
+        
+            map = basename(glob(f'flair-true-pos_same-t1w/sub-{subject}_{_modality}.nii.gz')[0])
+        
+        
+            plot_img(img=join('flair-true-pos_same-t1w', heatmap),
+                     bg_img=join('flair-true-pos_same-t1w',map), 
+                     cut_coords=[31,38,44,50,60],
+                     display_mode='z', 
+                     radiological=True, 
+                     cmap=cmcrameri.cm.roma_r, 
+                     transparency=join('flair-true-pos_same-t1w',heatmap), 
+                     resampling_interpolation="continuous",
+                     transparency_range=[0,0.1],
+                     cbar_tick_format='%.2f',
+                     black_bg=True,
+                     title=f'{_modality} {_test.upper()}',
+                     vmin=0,
+                     vmax=1,
+                     annotate=False,
+                    )
+            plt.savefig(join('flair-true-pos_same-t1w', f'{_modality}_{_test}.svg'))
+            plt.show()
+
+
+
+    return (re,)
 
 
 if __name__ == "__main__":
