@@ -1130,42 +1130,6 @@ def _(top_100_results):
 
 
 @app.cell
-def _(cmcrameri, plt):
-    cmcrameri.show_cmaps()
-    plt.show()
-    return
-
-
-@app.cell
-def _(basename, cmcrameri, glob, plot_img, plt, re):
-    #ToDo:  Change Colormaps to scientific mor acurate (batlow)
-
-    heatmap = glob('flair-true-pos_same-t1w/sub-*_mod-{modality}_desc-{test}_heatmap.nii.gz')
-    if len(heatmap) != 1:
-        heatmap = basename(heatmap[0])
-
-    subject = re.sub('sub-()')
-
-
-    plot_img(img='flair-true-pos_same-t1w/sub-500001599_mod-T1w_desc-PST_heatmap.nii.gz',
-             bg_img='flair-true-pos_same-t1w/sub-500001599_T1w.nii.gz', 
-             cut_coords=[31,38,44,50,60],
-             display_mode='z', 
-             radiological=True, 
-             cmap=cmcrameri.cm.roma_r, 
-             transparency='flair-true-pos_same-t1w/sub-500001599_mod-T1w_desc-PST_heatmap.nii.gz', 
-             resampling_interpolation="continuous",
-             transparency_range=[0,0.1],
-             cbar_tick_format='%.2f',
-             black_bg=True,
-             title='PST T1w'
-            )
-
-    plt.show()
-    return
-
-
-@app.cell
 def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
 
     import re
@@ -1207,7 +1171,15 @@ def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
 
 
 
-    return (re,)
+    return
+
+
+app._unparsable_cell(
+    r"""
+    nilearn.
+    """,
+    name="_"
+)
 
 
 if __name__ == "__main__":
