@@ -14,7 +14,7 @@ The figures created for the publication are in the marimo-notebook `notebooks/fi
 
 ## Notes
 
-###Colormaps 
+### Colormaps 
 
 We use scientific colormaps to ensure visual accuracy and readability for everyone:  https://www.fabiocrameri.ch/colourmaps/
 
