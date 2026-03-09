@@ -602,7 +602,7 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(Path, columns, data_dir, pd, run_test):
     _outfile = Path(f"output_t1w.csv")
     if _outfile.exists():
@@ -627,7 +627,6 @@ def _(Path, columns, data_dir, pd, run_test):
 
             df_t1w = pd.concat((df_t1w, _df_current), ignore_index=True)
             df_t1w.to_csv(_outfile, index=False)
-
 
     # Rename Entries to human readable format
     df_t1w.loc[df_t1w.name.str.contains("_pst"), "name"] = "PST"
@@ -750,7 +749,7 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(
     KaplanMeierFitter,
     columns,
@@ -824,8 +823,6 @@ def _(
             "f1_recall": f1_recall,
             "f1_score": f1_scores[f1_idx],
         }
-
-
 
     def plot_kaplan_meier(
         time_to_event,
@@ -970,9 +967,6 @@ def _(
 
         return km_metrics
 
-
-
-
     def kmplots(df, name):
         col_mapping = {"_pst": "PST", "_cst": "CST", "_wst": "WST", "_mdt": "MDT"}
         for _column in columns:
@@ -981,17 +975,16 @@ def _(
             _data_df = _data_df.query(f'not(time <= 0)')
 
             shortname  = next((v for k, v in col_mapping.items() if k in _column), None)
-
             km_data = _data_df.merge(df.query(f'name == "{shortname}"'))
             # km_data.time.fillna(0, inplace=True)
             km_data.dropna(subset='time', inplace=True)
+            km_data.to_csv(join('data', f'kmdata_{_column}.csv'), index=False)
             thresholds_dict = find_optimal_thresholds(km_data['y_test'].values, km_data['y_score'].values)
             time_to_event = km_data["time"].values
             event_observed = km_data["y_test"].values
             prediction_scores = km_data["y_score"].values
             km_threshold = thresholds_dict["youden_threshold"]
             km_path = join(f"{shortname}_{name}.svg")
-
             km_metrics = plot_kaplan_meier(
                         time_to_event,
                         event_observed,
@@ -1146,10 +1139,10 @@ def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
             heatmap = basename(glob(f'flair-true-pos_same-t1w/sub-*_mod-{_modality}_desc-{_test.upper()}_heatmap.nii.gz')[0])
             m = pattern.search(heatmap)
             subject = m.group("sub")
-        
+
             map = basename(glob(f'flair-true-pos_same-t1w/sub-{subject}_{_modality}.nii.gz')[0])
-        
-        
+
+
             plot_img(img=join('flair-true-pos_same-t1w', heatmap),
                      bg_img=join('flair-true-pos_same-t1w',map), 
                      cut_coords=[31,38,44,50,60],
@@ -1168,9 +1161,6 @@ def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
                     )
             plt.savefig(join('flair-true-pos_same-t1w', f'{_modality}_{_test}.svg'))
             plt.show()
-
-
-
     return
 
 
