@@ -39,6 +39,7 @@ def _(mo):
     import numpy as np
     import pandas as pd
     import seaborn as sns
+    import spiderplot as spidy
     import torch
     import torch.nn.functional as F
     from lifelines import KaplanMeierFitter
@@ -58,11 +59,11 @@ def _(mo):
         "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/baseline_characteristics.csv"
     )
     patientstable = "../../../RadBrainDL_msp/baseline_characteristics.csv"
-    # data_dir = "../../../RadBrainDL_msp/data/"
-    data_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/"
+    data_dir = "../../../RadBrainDL_msp/data/"
+    # data_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/"
     models_dir = "models"
-    # tensor_dir_test = "../../../RadBrainDL_msp/images/"
-    tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
+    tensor_dir_test = "../../../RadBrainDL_msp/images/"
+    # tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
 
     sys.path.append(braindraindir)
     try:
@@ -119,12 +120,12 @@ def _(mo):
         palette,
         patientstable,
         pd,
-        pi,
         plot_img,
         plt,
         precision_recall_curve,
         roc_curve,
         sns,
+        spidy,
         tensor_dir_test,
         torch,
     )
@@ -1214,68 +1215,30 @@ def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
 
 
 @app.cell
-def _(pd, pi, plt):
-    # Padding used to customize the location of the tick labels
-    X_VERTICAL_TICK_PADDING = 15
-    X_HORIZONTAL_TICK_PADDING = 50
-
-    # Read the CSV file
+def _(pd, plt, spidy):
     region_df = pd.read_csv("region_means.csv")
+    regions_long_df = region_df.reset_index().melt(
+        id_vars=["index"], var_name="region", value_name="value"
+    )
+    regions_long_df = regions_long_df.rename(columns={"index": "dataset"})
+    _ax = spidy.spiderplot(
+        x="region",
+        y="value",
+        hue="dataset",
+        legend=True,
+        data=regions_long_df,
+        palette="husl",
+        rref=0,
+    )
 
-    # Get columns and number of variables
-    labels = region_df.columns.tolist()
-    num_vars = len(labels)
-
-    # Compute angle for each axis
-    angles = [n / float(num_vars) * 2 * pi for n in range(num_vars)]
-    angles += angles[:1]  # Complete the circle
-
-    # Initialize the spider plot
-    ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))[1]
-
-    # Plot each row as a separate dataset
-    for index, row in region_df.iterrows():
-        values = row.values.flatten().tolist()
-        values += values[:1]  # Complete the circle
-
-        ax.plot(angles, values, linewidth=2, label=f"{index}", marker="o")
-        ax.fill(angles, values, alpha=0.25)
-
-    # Add labels
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(labels)
-
-    ax.yaxis.grid(True, linestyle="--")
-    ax.xaxis.grid(True, linestyle="--")
-
-    # Add title and legend
-    plt.title("Regional Attention", pad=20)
-    plt.legend(loc="upper right", bbox_to_anchor=(1.3, 1.0))
-    plt.tight_layout()
-
-    # Move labels outside of the plot
-    XTICKS = ax.xaxis.get_major_ticks()
-    for i, tick in enumerate(XTICKS):
-        # Alternate padding for better readability
-        tick.set_pad(X_HORIZONTAL_TICK_PADDING if i % 2 else X_VERTICAL_TICK_PADDING)
-        HorizontalAlignment = (
-            "center"
-            if angles[i] in [0, pi]
-            else ("left" if angles[i] < pi else "right")
-        )
-        VerticalAlignment = (
-            "center"
-            if angles[i] in [pi / 2, 3 * pi / 2]
-            else ("bottom" if angles[i] < pi / 2 or angles[i] > 3 * pi / 2 else "top")
-        )
-        tick.label1.set_horizontalalignment(HorizontalAlignment)
-        tick.label1.set_verticalalignment(VerticalAlignment)
-
-    # Adjust the radial limits to ensure labels are not cut off
-    ax.set_rlim(bottom=0)
-    plt.tight_layout()
-
+    plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
     plt.show()
+    return (region_df,)
+
+
+@app.cell
+def _(region_df):
+    region_df
     return
 
 
