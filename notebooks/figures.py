@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.19.7"
-app = marimo.App(width="full", app_title="Figures and plots")
+__generated_with = "0.19.8"
+app = marimo.App(width="medium", app_title="Figures and plots")
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -26,38 +27,42 @@ def _(mo):
 
 @app.cell
 def _(mo):
+    import sys
+    from glob import glob
+    from math import pi
+    from os import makedirs
+    from os.path import abspath, basename, dirname, join
+    from pathlib import Path
+
+    import cmcrameri
+    import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
     import seaborn as sns
-    import sys
-    from os.path import join, abspath, dirname,basename
-    from os import makedirs
     import torch
     import torch.nn.functional as F
-    from torch.utils.data import DataLoader
-    from pathlib import Path
-    from sklearn.metrics import roc_curve, auc, precision_recall_curve
-    import matplotlib.pyplot as plt
     from lifelines import KaplanMeierFitter
-    from lifelines.statistics import logrank_test
     from lifelines.plotting import add_at_risk_counts
-    from scipy.stats import ks_2samp
+    from lifelines.statistics import logrank_test
     from matplotlib.colors import ListedColormap
     from nilearn.plotting import plot_anat, plot_img
-    import cmcrameri
-    from glob import glob
+    from scipy.stats import ks_2samp
+    from sklearn.metrics import auc, precision_recall_curve, roc_curve
+    from torch.utils.data import DataLoader
 
     # Define Paths and Filenames for further work / from previous work with BrainTrain
-    #braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
+    # braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
     #                                                             # will be used to load modules
-    braindraindir = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/'
-    patientstable = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/baseline_characteristics.csv'
-    patientstable = '../../../RadBrainDL_msp/baseline_characteristics.csv'
+    braindraindir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/"
+    patientstable = (
+        "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/baseline_characteristics.csv"
+    )
+    patientstable = "../../../RadBrainDL_msp/baseline_characteristics.csv"
     # data_dir = "../../../RadBrainDL_msp/data/"
-    data_dir = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/'
-    models_dir = 'models'
+    data_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/"
+    models_dir = "models"
     # tensor_dir_test = "../../../RadBrainDL_msp/images/"
-    tensor_dir_test = '/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images'
+    tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
 
     sys.path.append(braindraindir)
     try:
@@ -69,11 +74,10 @@ def _(mo):
 
     # try:
     #    from architectures import sfcn_cls
-    #except ModuleNotFoundError:
+    # except ModuleNotFoundError:
     #    mo.md("Could not load SFCN module! This might break things.").callout(
     #        kind="danger"
     #    )
-
 
     columns = [
         "worst_progression_pst_2z",
@@ -82,17 +86,14 @@ def _(mo):
         "worst_progression_wst_2z",
     ]
 
-
-
-    palette = sns.color_palette("tab10",3)  
+    palette = sns.color_palette("tab10", 3)
     cmap = ListedColormap(palette)
 
-    sns.set_palette('tab10')
+    sns.set_palette("tab10")
     sns.set_style("whitegrid")
     sns.set_context("talk")
 
-
-    dataset_order=['training', 'validation', 'test']
+    dataset_order = ["training", "validation", "test"]
     return (
         DataLoader,
         F,
@@ -118,6 +119,7 @@ def _(mo):
         palette,
         patientstable,
         pd,
+        pi,
         plot_img,
         plt,
         precision_recall_curve,
@@ -182,7 +184,6 @@ def _(
         upper = np.percentile(bootstrapped_scores, 97.5)
         return np.mean(bootstrapped_scores), lower, upper
 
-
     def plot_roc_curve(df, y_true="y_test", y_score="y_score", dataset="name"):
         """
         Plot auroc curve for a dataframe
@@ -202,9 +203,7 @@ def _(
             roc_mean, roc_lower, roc_upper = bootstrap_auc(
                 y_true_array, y_score_array, curve="roc"
             )
-            ax = sns.lineplot(
-                x=fpr, y=tpr, label=f"{data_name} (AUC = {roc_auc:.2f})"
-            )
+            ax = sns.lineplot(x=fpr, y=tpr, label=f"{data_name} (AUC = {roc_auc:.2f})")
 
         sns.lineplot(x=[0, 1], y=[0, 1], linestyle="--")
         ax.set_xlim((0, 1))
@@ -217,7 +216,6 @@ def _(
 
         return ax
 
-
     def plot_prc_curve(df, y_true="y_test", y_score="y_score", dataset="name"):
         """Plot Precision-Recall curve with confidence intervals"""
         data_names = df[
@@ -228,9 +226,7 @@ def _(
             subset = df[df[dataset] == data_name]
             y_true_array = np.array(subset[y_true].to_list())
             y_score_array = np.array(subset[y_score].to_list())
-            precision, recall, _ = precision_recall_curve(
-                y_true_array, y_score_array
-            )
+            precision, recall, _ = precision_recall_curve(y_true_array, y_score_array)
             prc_auc = auc(recall, precision)
             prc_mean, prc_lower, prc_upper = bootstrap_auc(
                 y_true_array, y_score_array, curve="prc"
@@ -260,7 +256,6 @@ def _(
         ax.set_title(f"PRC Curve ")
 
         return ax
-
 
     def run_test(column_name, data_dir, test_dataset, modality):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -321,7 +316,6 @@ def _(
 
         return eids, y_true, y_score
 
-
     df = pd.DataFrame()
     return plot_prc_curve, plot_roc_curve, run_test
 
@@ -337,23 +331,30 @@ def _(mo):
 @app.cell
 def _(columns, data_dir, dataset_order, join, patientstable, pd):
     # read patients characteristics table:
-    pat_df = pd.read_csv(patientstable, dtype={'site_x': str})
-    pat_df.site_x = pat_df.site_x.str.replace('.0','')
+    pat_df = pd.read_csv(patientstable, dtype={"site_x": str})
+    pat_df.site_x = pat_df.site_x.str.replace(".0", "")
     # get list of patients in test-dataset
-    test_ids = pd.read_csv(join(data_dir, 'mspaths2', 't1w', 'test', f'{columns[0]}.csv')).eid.to_list()
+    test_ids = pd.read_csv(
+        join(data_dir, "mspaths2", "t1w", "test", f"{columns[0]}.csv")
+    ).eid.to_list()
 
     # get list of patients in training-dataset
-    training_ids = pd.read_csv(join(data_dir, 'mspaths', 't1w', 'train',  f'{columns[0]}.csv')).eid.to_list()
+    training_ids = pd.read_csv(
+        join(data_dir, "mspaths", "t1w", "train", f"{columns[0]}.csv")
+    ).eid.to_list()
 
     # get list of patients in validation-dataset
-    validation_ids = pd.read_csv(join(data_dir, 'mspaths', 't1w', 'val',  f'{columns[0]}.csv')).eid.to_list()
+    validation_ids = pd.read_csv(
+        join(data_dir, "mspaths", "t1w", "val", f"{columns[0]}.csv")
+    ).eid.to_list()
 
-    pat_df.loc[pat_df.eid.isin(training_ids), 'dataset'] = 'training'
-    pat_df.loc[pat_df.eid.isin(validation_ids), 'dataset'] = 'validation'
-    pat_df.loc[pat_df.eid.isin(test_ids), 'dataset'] = 'test'
+    pat_df.loc[pat_df.eid.isin(training_ids), "dataset"] = "training"
+    pat_df.loc[pat_df.eid.isin(validation_ids), "dataset"] = "validation"
+    pat_df.loc[pat_df.eid.isin(test_ids), "dataset"] = "test"
 
-    pat_df['dataset'] = pd.Categorical(pat_df['dataset'], categories=dataset_order, ordered=True)
-
+    pat_df["dataset"] = pd.Categorical(
+        pat_df["dataset"], categories=dataset_order, ordered=True
+    )
 
     len(pat_df.eid.unique())
     return (pat_df,)
@@ -369,88 +370,114 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(cmap, pat_df, pd, plt):
+    _ax = pd.crosstab(pat_df["site_x"], pat_df["dataset"]).plot(
+        kind="barh", stacked=True, cmap=cmap
+    )
 
+    _ax.set_xlabel("number of patients")
+    _ax.set_ylabel("Center ID")
 
-
-    _ax = pd.crosstab(pat_df['site_x'], pat_df['dataset']).plot(kind='barh', stacked=True, cmap=cmap)
-
-    _ax.set_xlabel('number of patients')
-    _ax.set_ylabel('Center ID')
-
-
-    plt.savefig('test_train_center_split.svg')
+    plt.savefig("test_train_center_split.svg")
     plt.show()
     return
 
 
 @app.cell(hide_code=True)
 def _(pat_df, pd, plt):
+    _colors = ["#EF233C", "#2B2D42"]
 
-    _colors = ["#EF233C", "#2B2D42" ]
+    _ax = pd.crosstab(pat_df["dataset"], pat_df["sex"]).plot(
+        kind="barh", stacked=True, legend=False, color=_colors
+    )
 
-    _ax = pd.crosstab(pat_df['dataset'], pat_df['sex']).plot(kind='barh', stacked=True, legend=False, color=_colors)
-
-    _ax.set_xlabel('Number of Subjects')
-    _ax.set_ylabel('')
+    _ax.set_xlabel("Number of Subjects")
+    _ax.set_ylabel("")
     # _ax.set_yticklabels(['Val', 'Train', 'Test'])
-    plt.legend(title='', loc='upper right', labels=['female', 'male'], bbox_to_anchor=(1.2,1) )
+    plt.legend(
+        title="",
+        loc="upper right",
+        labels=["female", "male"],
+        bbox_to_anchor=(1.2, 1),
+    )
 
     plt.tight_layout()
-    plt.savefig('test_train_sex_split.svg')
+    plt.savefig("test_train_sex_split.svg")
     plt.show()
     return
 
 
 @app.cell(hide_code=True)
 def _(dataset_order, ks_2samp, palette, pat_df, plt, sns):
-
-    ages_train = pat_df.loc[pat_df['dataset']=='training','age']
-    ages_test  = pat_df.loc[pat_df['dataset']=='test','age']
+    ages_train = pat_df.loc[pat_df["dataset"] == "training", "age"]
+    ages_test = pat_df.loc[pat_df["dataset"] == "test", "age"]
     ks_stat, p = ks_2samp(ages_train, ages_test)
 
-    print('KS p-value:', p)
+    print("KS p-value:", p)
 
-    plt.figure(figsize=(8,5))
-    sns.violinplot(data=pat_df, x='dataset', y='age', inner='box', hue='dataset', cut=0, hue_order=dataset_order, palette=palette )
-    plt.xlabel('Dataset')
-    plt.ylabel('Age')
-    plt.title('')
+    plt.figure(figsize=(8, 5))
+    sns.violinplot(
+        data=pat_df,
+        x="dataset",
+        y="age",
+        inner="box",
+        hue="dataset",
+        cut=0,
+        hue_order=dataset_order,
+        palette=palette,
+    )
+    plt.xlabel("Dataset")
+    plt.ylabel("Age")
+    plt.title("")
 
-    plt.legend(title='', loc='upper right', bbox_to_anchor=(1.5,1) )
+    plt.legend(title="", loc="upper right", bbox_to_anchor=(1.5, 1))
 
     plt.tight_layout()
 
-    plt.savefig('dataset_age_distribution.svg')
+    plt.savefig("dataset_age_distribution.svg")
     plt.show()
     return
 
 
 @app.cell(disabled=True)
 def _(pat_df, plt, sns):
-    from scipy import stats
     import scikit_posthocs as sp  # für paarweise Dunn-Tests; optional
+    from scipy import stats
 
     # Annahme: pat_df bereits geladen mit Spalten 'age','sex','dataset'
     # Sicherstellen, dass dataset-Kategorien in gewünschter Reihenfolge sind:
-    order = ['training', 'validation', 'test']
+    order = ["training", "validation", "test"]
     # pat_df['dataset'] = pd.Categorical(pat_df['dataset'], categories=order, ordered=True)
 
     # 1) Violinplot mit innerem Boxplot
-    sns.violinplot(data=pat_df, x='dataset', y='age', order=order, inner='box', hue='dataset', )
-    plt.xlabel('Dataset')
-    plt.ylabel('Age')
-    plt.title('')
+    sns.violinplot(
+        data=pat_df,
+        x="dataset",
+        y="age",
+        order=order,
+        inner="box",
+        hue="dataset",
+    )
+    plt.xlabel("Dataset")
+    plt.ylabel("Age")
+    plt.title("")
 
     # 2) Kruskal-Wallis H-Test (global)
-    groups = [pat_df.loc[pat_df['dataset']==g, 'age'].dropna().values for g in order]
+    groups = [pat_df.loc[pat_df["dataset"] == g, "age"].dropna().values for g in order]
     kw_stat, kw_p = stats.kruskal(*groups)
 
     # Anzeige des Testergebnisses im Plot
-    props = dict(boxstyle='round', facecolor='white', alpha=0.8)
-    text = f'Kruskal-Wallis H={kw_stat:.3f}\np={kw_p:.3e}'
-    plt.gca().text(0.02, 0.98, text, transform=plt.gca().transAxes, fontsize=10,
-                   verticalalignment='top', bbox=props)
-    plt.legend(title='', loc='upper right', bbox_to_anchor=(1.5,1) )
+    props = dict(boxstyle="round", facecolor="white", alpha=0.8)
+    text = f"Kruskal-Wallis H={kw_stat:.3f}\np={kw_p:.3e}"
+    plt.gca().text(
+        0.02,
+        0.98,
+        text,
+        transform=plt.gca().transAxes,
+        fontsize=10,
+        verticalalignment="top",
+        bbox=props,
+    )
+    plt.legend(title="", loc="upper right", bbox_to_anchor=(1.5, 1))
 
     plt.tight_layout()
     plt.show()
@@ -458,11 +485,18 @@ def _(pat_df, plt, sns):
     # 3) Optional: paarweise Tests (Dunn) mit Bonferroni-Korrektur, nur anzeigen falls global signifikant
     if kw_p < 0.05:
         # Benötigt scikit-posthocs: pip install scikit-posthocs
-        data_for_posthoc = pat_df[['age','dataset']].dropna()
-        dunn = sp.posthoc_dunn(data_for_posthoc, val_col='age', group_col='dataset', p_adjust='bonferroni')
-        print('Dunn post-hoc (Bonferroni-korrigierte p-Werte):\n', dunn)
+        data_for_posthoc = pat_df[["age", "dataset"]].dropna()
+        dunn = sp.posthoc_dunn(
+            data_for_posthoc,
+            val_col="age",
+            group_col="dataset",
+            p_adjust="bonferroni",
+        )
+        print("Dunn post-hoc (Bonferroni-korrigierte p-Werte):\n", dunn)
     else:
-        print('Kruskal-Wallis nicht signifikant (p >= 0.05); keine paarweisen Tests durchgeführt.')
+        print(
+            "Kruskal-Wallis nicht signifikant (p >= 0.05); keine paarweisen Tests durchgeführt."
+        )
     return
 
 
@@ -508,7 +542,7 @@ def preprocessing_pipeline(mo):
       A --> N4Bias(N4BiasfieldCorrection)
       N4Bias --> BET(brain extraction)
       B[FLAIR Image; below=A] -->|register to T1w| C[Registered FLAIR]
-      A --> MASK(skullstripped T1w) 
+      A --> MASK(skullstripped T1w)
       BET -->|brainmask| MASK
       BET-->|brainmask| BETFLAIR[skullstripped FLAIR]
       C --> BETFLAIR
@@ -696,7 +730,6 @@ def _(Path, columns, data_dir, pd, run_test):
             df_flair = pd.concat((df_flair, _df_current), ignore_index=True)
             df_flair.to_csv(_outfile, index=False)
 
-
     # Rename Entries to human readable format
     df_flair.loc[df_flair.name.str.contains("_pst"), "name"] = "PST"
     df_flair.loc[df_flair.name.str.contains("_cst"), "name"] = "CST"
@@ -800,7 +833,9 @@ def _(
         f1_scores = np.zeros(len(precision))
         for i in range(len(precision)):
             if precision[i] + recall[i] > 0:
-                f1_scores[i] = 2 * (precision[i] * recall[i]) / (precision[i] + recall[i])
+                f1_scores[i] = (
+                    2 * (precision[i] * recall[i]) / (precision[i] + recall[i])
+                )
         f1_idx = np.argmax(f1_scores)
         f1_threshold = pr_thresholds[f1_idx] if f1_idx < len(pr_thresholds) else 1.0
         f1_precision = precision[f1_idx]
@@ -970,31 +1005,35 @@ def _(
     def kmplots(df, name):
         col_mapping = {"_pst": "PST", "_cst": "CST", "_wst": "WST", "_mdt": "MDT"}
         for _column in columns:
+            _data_df = pd.read_csv(
+                join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv")
+            )
+            _data_df = _data_df.query(f"not(time <= 0)")
 
-            _data_df = pd.read_csv(join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv"))
-            _data_df = _data_df.query(f'not(time <= 0)')
-
-            shortname  = next((v for k, v in col_mapping.items() if k in _column), None)
+            shortname = next((v for k, v in col_mapping.items() if k in _column), None)
             km_data = _data_df.merge(df.query(f'name == "{shortname}"'))
             # km_data.time.fillna(0, inplace=True)
-            km_data.dropna(subset='time', inplace=True)
-            km_data.to_csv(join('data', f'kmdata_{_column}.csv'), index=False)
-            thresholds_dict = find_optimal_thresholds(km_data['y_test'].values, km_data['y_score'].values)
+            km_data.dropna(subset="time", inplace=True)
+            km_data.to_csv(join("data", f"kmdata_{_column}.csv"), index=False)
+            thresholds_dict = find_optimal_thresholds(
+                km_data["y_test"].values, km_data["y_score"].values
+            )
             time_to_event = km_data["time"].values
             event_observed = km_data["y_test"].values
             prediction_scores = km_data["y_score"].values
             km_threshold = thresholds_dict["youden_threshold"]
             km_path = join(f"{shortname}_{name}.svg")
             km_metrics = plot_kaplan_meier(
-                        time_to_event,
-                        event_observed,
-                        prediction_scores,
-                        f"{shortname} - {name}",
-                        threshold=km_threshold,
-                        save_path=km_path,
-                    )
+                time_to_event,
+                event_observed,
+                prediction_scores,
+                f"{shortname} - {name}",
+                threshold=km_threshold,
+                save_path=km_path,
+            )
 
             plt.show()
+
     return (kmplots,)
 
 
@@ -1006,7 +1045,7 @@ def _(df_t1w):
 
 @app.cell
 def _(df_t1w, kmplots):
-    kmplots(df_t1w, 'T1w')
+    kmplots(df_t1w, "T1w")
     return
 
 
@@ -1020,7 +1059,7 @@ def _(mo):
 
 @app.cell
 def _(df_flair, kmplots):
-    kmplots(df_flair, 'FLAIR')
+    kmplots(df_flair, "FLAIR")
     return
 
 
@@ -1056,14 +1095,17 @@ def _(mo):
 def _(pd):
     attention_maps_df = pd.DataFrame()
 
-    test_names = ['cst', 'wst', 'mdt', 'pst']
-    modalities = ['T1w', 'FLAIR']
+    test_names = ["cst", "wst", "mdt", "pst"]
+    modalities = ["T1w", "FLAIR"]
     for test_name in test_names:
         for modality in modalities:
-            _df = pd.read_csv(f'regional_attention/regional_scores_{test_name}_{modality}.csv', index_col='eid')
+            _df = pd.read_csv(
+                f"regional_attention/regional_scores_{test_name}_{modality}.csv",
+                index_col="eid",
+            )
 
-            _df['modality'] = modality
-            _df['test'] = test_name
+            _df["modality"] = modality
+            _df["test"] = test_name
 
             attention_maps_df = pd.concat((attention_maps_df, _df), ignore_index=True)
 
@@ -1079,7 +1121,7 @@ def _():
 
 @app.cell
 def _(attention_maps_df):
-    def get_top_100_per_column(df, region_columns, groupby_cols=['modality', 'test']):
+    def get_top_100_per_column(df, region_columns, groupby_cols=["modality", "test"]):
         """Get top 100 rows per region column, grouped by modality and test."""
         results = {}
 
@@ -1096,7 +1138,9 @@ def _(attention_maps_df):
         return results
 
     # Get all region columns (excluding 'modality' and 'test')
-    region_columns = [col for col in attention_maps_df.columns if col not in ['modality', 'test']]
+    region_columns = [
+        col for col in attention_maps_df.columns if col not in ["modality", "test"]
+    ]
 
     # Get top 100 per region
     top_100_results = get_top_100_per_column(attention_maps_df, region_columns)
@@ -1115,7 +1159,7 @@ def _(top_100_results):
     print(f"Top 100 results for {sample_region}:")
     print(f"Total rows: {len(top_100_sample)}")
     print(f"\nBreakdown by modality and test:")
-    print(top_100_sample.groupby(['modality', 'test']).size())
+    print(top_100_sample.groupby(["modality", "test"]).size())
 
     print(f"\nFirst few rows of {sample_region} sorted by value:")
     print(top_100_sample.head(10))
@@ -1124,52 +1168,115 @@ def _(top_100_results):
 
 @app.cell
 def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
-
     import re
 
     pattern = re.compile(r"sub-(?P<sub>[^_]+)_mod-.*_desc-.*_heatmap\.nii\.gz")
     # m = pattern.search("sub-ABC123_mod-{modality}_desc-{test}_heatmap.nii.gz")
 
-    _modality = 'FLAIR'
-    _test = 'PST'
+    _modality = "FLAIR"
+    _test = "PST"
 
     for _modality in modalities:
         for _test in test_names:
-            print(f'{_modality} for test {_test}')
-            heatmap = basename(glob(f'flair-true-pos_same-t1w/sub-*_mod-{_modality}_desc-{_test.upper()}_heatmap.nii.gz')[0])
+            print(f"{_modality} for test {_test}")
+            heatmap = basename(
+                glob(
+                    f"flair-true-pos_same-t1w/sub-*_mod-{_modality}_desc-{_test.upper()}_heatmap.nii.gz"
+                )[0]
+            )
             m = pattern.search(heatmap)
             subject = m.group("sub")
 
-            map = basename(glob(f'flair-true-pos_same-t1w/sub-{subject}_{_modality}.nii.gz')[0])
+            map = basename(
+                glob(f"flair-true-pos_same-t1w/sub-{subject}_{_modality}.nii.gz")[0]
+            )
 
-
-            plot_img(img=join('flair-true-pos_same-t1w', heatmap),
-                     bg_img=join('flair-true-pos_same-t1w',map), 
-                     cut_coords=[31,38,44,50,60],
-                     display_mode='z', 
-                     radiological=True, 
-                     cmap=cmcrameri.cm.roma_r, 
-                     transparency=join('flair-true-pos_same-t1w',heatmap), 
-                     resampling_interpolation="continuous",
-                     transparency_range=[0,0.1],
-                     cbar_tick_format='%.2f',
-                     black_bg=True,
-                     title=f'{_modality} {_test.upper()}',
-                     vmin=0,
-                     vmax=1,
-                     annotate=False,
-                    )
-            plt.savefig(join('flair-true-pos_same-t1w', f'{_modality}_{_test}.svg'))
+            plot_img(
+                img=join("flair-true-pos_same-t1w", heatmap),
+                bg_img=join("flair-true-pos_same-t1w", map),
+                cut_coords=[31, 38, 44, 50, 60],
+                display_mode="z",
+                radiological=True,
+                cmap=cmcrameri.cm.roma_r,
+                transparency=join("flair-true-pos_same-t1w", heatmap),
+                resampling_interpolation="continuous",
+                transparency_range=[0, 0.1],
+                cbar_tick_format="%.2f",
+                black_bg=True,
+                title=f"{_modality} {_test.upper()}",
+                vmin=0,
+                vmax=1,
+                annotate=False,
+            )
+            plt.savefig(join("flair-true-pos_same-t1w", f"{_modality}_{_test}.svg"))
             plt.show()
     return
 
 
-app._unparsable_cell(
-    r"""
-    nilearn.
-    """,
-    name="_"
-)
+@app.cell
+def _(pd, pi, plt):
+    # Padding used to customize the location of the tick labels
+    X_VERTICAL_TICK_PADDING = 15
+    X_HORIZONTAL_TICK_PADDING = 50
+
+    # Read the CSV file
+    region_df = pd.read_csv("region_means.csv")
+
+    # Get columns and number of variables
+    labels = region_df.columns.tolist()
+    num_vars = len(labels)
+
+    # Compute angle for each axis
+    angles = [n / float(num_vars) * 2 * pi for n in range(num_vars)]
+    angles += angles[:1]  # Complete the circle
+
+    # Initialize the spider plot
+    ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))[1]
+
+    # Plot each row as a separate dataset
+    for index, row in region_df.iterrows():
+        values = row.values.flatten().tolist()
+        values += values[:1]  # Complete the circle
+
+        ax.plot(angles, values, linewidth=2, label=f"{index}", marker="o")
+        ax.fill(angles, values, alpha=0.25)
+
+    # Add labels
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels)
+
+    ax.yaxis.grid(True, linestyle="--")
+    ax.xaxis.grid(True, linestyle="--")
+
+    # Add title and legend
+    plt.title("Regional Attention", pad=20)
+    plt.legend(loc="upper right", bbox_to_anchor=(1.3, 1.0))
+    plt.tight_layout()
+
+    # Move labels outside of the plot
+    XTICKS = ax.xaxis.get_major_ticks()
+    for i, tick in enumerate(XTICKS):
+        # Alternate padding for better readability
+        tick.set_pad(X_HORIZONTAL_TICK_PADDING if i % 2 else X_VERTICAL_TICK_PADDING)
+        HorizontalAlignment = (
+            "center"
+            if angles[i] in [0, pi]
+            else ("left" if angles[i] < pi else "right")
+        )
+        VerticalAlignment = (
+            "center"
+            if angles[i] in [pi / 2, 3 * pi / 2]
+            else ("bottom" if angles[i] < pi / 2 or angles[i] > 3 * pi / 2 else "top")
+        )
+        tick.label1.set_horizontalalignment(HorizontalAlignment)
+        tick.label1.set_verticalalignment(VerticalAlignment)
+
+    # Adjust the radial limits to ensure labels are not cut off
+    ax.set_rlim(bottom=0)
+    plt.tight_layout()
+
+    plt.show()
+    return
 
 
 if __name__ == "__main__":
