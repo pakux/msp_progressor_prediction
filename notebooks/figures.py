@@ -185,6 +185,7 @@ def _(
         upper = np.percentile(bootstrapped_scores, 97.5)
         return np.mean(bootstrapped_scores), lower, upper
 
+
     def plot_roc_curve(df, y_true="y_test", y_score="y_score", dataset="name"):
         """
         Plot auroc curve for a dataframe
@@ -204,7 +205,9 @@ def _(
             roc_mean, roc_lower, roc_upper = bootstrap_auc(
                 y_true_array, y_score_array, curve="roc"
             )
-            ax = sns.lineplot(x=fpr, y=tpr, label=f"{data_name} (AUC = {roc_auc:.2f})")
+            ax = sns.lineplot(
+                x=fpr, y=tpr, label=f"{data_name} (AUC = {roc_auc:.2f})"
+            )
 
         sns.lineplot(x=[0, 1], y=[0, 1], linestyle="--")
         ax.set_xlim((0, 1))
@@ -217,6 +220,7 @@ def _(
 
         return ax
 
+
     def plot_prc_curve(df, y_true="y_test", y_score="y_score", dataset="name"):
         """Plot Precision-Recall curve with confidence intervals"""
         data_names = df[
@@ -227,7 +231,9 @@ def _(
             subset = df[df[dataset] == data_name]
             y_true_array = np.array(subset[y_true].to_list())
             y_score_array = np.array(subset[y_score].to_list())
-            precision, recall, _ = precision_recall_curve(y_true_array, y_score_array)
+            precision, recall, _ = precision_recall_curve(
+                y_true_array, y_score_array
+            )
             prc_auc = auc(recall, precision)
             prc_mean, prc_lower, prc_upper = bootstrap_auc(
                 y_true_array, y_score_array, curve="prc"
@@ -257,6 +263,7 @@ def _(
         ax.set_title(f"PRC Curve ")
 
         return ax
+
 
     def run_test(column_name, data_dir, test_dataset, modality):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -316,6 +323,7 @@ def _(
         y_score = np.array(test_outputs_binary).astype(float)
 
         return eids, y_true, y_score
+
 
     df = pd.DataFrame()
     return plot_prc_curve, plot_roc_curve, run_test
@@ -463,7 +471,9 @@ def _(pat_df, plt, sns):
     plt.title("")
 
     # 2) Kruskal-Wallis H-Test (global)
-    groups = [pat_df.loc[pat_df["dataset"] == g, "age"].dropna().values for g in order]
+    groups = [
+        pat_df.loc[pat_df["dataset"] == g, "age"].dropna().values for g in order
+    ]
     kw_stat, kw_p = stats.kruskal(*groups)
 
     # Anzeige des Testergebnisses im Plot
@@ -838,7 +848,9 @@ def _(
                     2 * (precision[i] * recall[i]) / (precision[i] + recall[i])
                 )
         f1_idx = np.argmax(f1_scores)
-        f1_threshold = pr_thresholds[f1_idx] if f1_idx < len(pr_thresholds) else 1.0
+        f1_threshold = (
+            pr_thresholds[f1_idx] if f1_idx < len(pr_thresholds) else 1.0
+        )
         f1_precision = precision[f1_idx]
         f1_recall = recall[f1_idx]
 
@@ -859,6 +871,7 @@ def _(
             "f1_recall": f1_recall,
             "f1_score": f1_scores[f1_idx],
         }
+
 
     def plot_kaplan_meier(
         time_to_event,
@@ -1003,6 +1016,7 @@ def _(
 
         return km_metrics
 
+
     def kmplots(df, name):
         col_mapping = {"_pst": "PST", "_cst": "CST", "_wst": "WST", "_mdt": "MDT"}
         for _column in columns:
@@ -1011,7 +1025,9 @@ def _(
             )
             _data_df = _data_df.query(f"not(time <= 0)")
 
-            shortname = next((v for k, v in col_mapping.items() if k in _column), None)
+            shortname = next(
+                (v for k, v in col_mapping.items() if k in _column), None
+            )
             km_data = _data_df.merge(df.query(f'name == "{shortname}"'))
             # km_data.time.fillna(0, inplace=True)
             km_data.dropna(subset="time", inplace=True)
@@ -1108,7 +1124,9 @@ def _(pd):
             _df["modality"] = modality
             _df["test"] = test_name
 
-            attention_maps_df = pd.concat((attention_maps_df, _df), ignore_index=True)
+            attention_maps_df = pd.concat(
+                (attention_maps_df, _df), ignore_index=True
+            )
 
     attention_maps_df.columns
     return attention_maps_df, modalities, test_names
@@ -1122,7 +1140,9 @@ def _():
 
 @app.cell
 def _(attention_maps_df):
-    def get_top_100_per_column(df, region_columns, groupby_cols=["modality", "test"]):
+    def get_top_100_per_column(
+        df, region_columns, groupby_cols=["modality", "test"]
+    ):
         """Get top 100 rows per region column, grouped by modality and test."""
         results = {}
 
@@ -1137,6 +1157,7 @@ def _(attention_maps_df):
             results[region] = top_100
 
         return results
+
 
     # Get all region columns (excluding 'modality' and 'test')
     region_columns = [
@@ -1189,7 +1210,9 @@ def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
             subject = m.group("sub")
 
             map = basename(
-                glob(f"flair-true-pos_same-t1w/sub-{subject}_{_modality}.nii.gz")[0]
+                glob(f"flair-true-pos_same-t1w/sub-{subject}_{_modality}.nii.gz")[
+                    0
+                ]
             )
 
             plot_img(
@@ -1209,36 +1232,57 @@ def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
                 vmax=1,
                 annotate=False,
             )
-            plt.savefig(join("flair-true-pos_same-t1w", f"{_modality}_{_test}.svg"))
+            plt.savefig(
+                join("flair-true-pos_same-t1w", f"{_modality}_{_test}.svg")
+            )
             plt.show()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Mean attention over top 20 results for each test.
+    """)
     return
 
 
 @app.cell
 def _(pd, plt, spidy):
-    region_df = pd.read_csv("region_means.csv")
-    regions_long_df = region_df.reset_index().melt(
-        id_vars=["index"], var_name="region", value_name="value"
+    region_df = pd.read_csv("im96.csv")
+    region_df["test"] = region_df.test.str.upper()
+    regions_long_df = region_df.melt(
+        id_vars=["test"], var_name="region", value_name="value"
     )
-    regions_long_df = regions_long_df.rename(columns={"index": "dataset"})
+
+    regions_long_df = regions_long_df.rename(columns={"test": "dataset"})
+
     _ax = spidy.spiderplot(
         x="region",
         y="value",
         hue="dataset",
         legend=True,
         data=regions_long_df,
-        palette="husl",
-        rref=0,
+        hue_order=["PST","MDT", "CST", "WST"]
+        # palette=cmap,
     )
 
-    plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+    plt.legend(bbox_to_anchor=(1.7, 1.2))
+    plt.savefig("regional_major_attention.svg")
+    plt.savefig("regional_major_attention.png")
     plt.show()
-    return (region_df,)
+    return region_df, regions_long_df
 
 
 @app.cell
 def _(region_df):
     region_df
+    return
+
+
+@app.cell
+def _(regions_long_df):
+    regions_long_df
     return
 
 
