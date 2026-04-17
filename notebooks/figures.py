@@ -1248,8 +1248,10 @@ def _(mo):
 
 
 @app.cell
-def _(pd, plt, spidy):
-    region_df = pd.read_csv("im96.csv")
+def _(pd, plt, sns, spidy):
+    ##### FLAIR
+
+    region_df = pd.read_csv("im96_flair.csv")
     region_df["test"] = region_df.test.str.upper()
     regions_long_df = region_df.melt(
         id_vars=["test"], var_name="region", value_name="value"
@@ -1263,14 +1265,51 @@ def _(pd, plt, spidy):
         hue="dataset",
         legend=True,
         data=regions_long_df,
-        hue_order=["PST","MDT", "CST", "WST"]
+        hue_order=["PST", "MDT", "CST", "WST"],
         # palette=cmap,
     )
 
+    _ax.set_title("Regional Attention - FLAIR")
     plt.legend(bbox_to_anchor=(1.7, 1.2))
-    plt.savefig("regional_major_attention.svg")
-    plt.savefig("regional_major_attention.png")
+    plt.savefig("regional_major_attention_flair.svg")
+    plt.savefig("regional_major_attention_flair.png")
     plt.show()
+
+    grid = sns.FacetGrid(regions_long_df, col='dataset', col_wrap=4, hue="dataset", sharey=True, sharex=True)
+    grid.map_dataframe(sns.barplot, "value", "region" )
+    grid.fig.tight_layout(w_pad=1)
+
+    plt.show()
+    ##### T1w
+
+    region_df = pd.read_csv("im96_t1w.csv")
+    region_df["test"] = region_df.test.str.upper()
+    regions_long_df = region_df.melt(
+        id_vars=["test"], var_name="region", value_name="value"
+    )
+
+    regions_long_df = regions_long_df.rename(columns={"test": "dataset"})
+
+    _ax = spidy.spiderplot(
+        x="region",
+        y="value",
+        hue="dataset",
+        legend=True,
+        data=regions_long_df,
+        hue_order=["PST", "MDT", "CST", "WST"],
+        # palette=cmap,
+    )
+    _ax.set_title("Regional Attention - T1w")
+    plt.legend(bbox_to_anchor=(1.7, 1.2))
+    plt.savefig("regional_major_attention_t1w.svg")
+    plt.savefig("regional_major_attention_t1w.png")
+    plt.show()
+
+    grid = sns.FacetGrid(regions_long_df, col='dataset', col_wrap=1, hue="dataset")
+    grid.map(sns.barplot, "value", "region", )
+
+    plt.show()
+
     return region_df, regions_long_df
 
 
