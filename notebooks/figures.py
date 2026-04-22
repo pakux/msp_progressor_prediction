@@ -214,7 +214,7 @@ def _(
         ax.set_ylim((0, 1.05))
         ax.set_xlabel("False Positive Rate")
         ax.set_ylabel("True Positive Rate")
-        ax.set_title("Receiver Operationg Characteristic (ROC) Curves")
+        ax.set_title("Receiver Operating Characteristic (ROC) Curves")
 
         # plt.show()
 
@@ -367,6 +367,19 @@ def _(columns, data_dir, dataset_order, join, patientstable, pd):
 
     len(pat_df.eid.unique())
     return (pat_df,)
+
+
+app._unparsable_cell(
+    r"""
+    _demographics = {}
+    for _ds in ['training', 'validation', 'test']:
+        _demographics[_ds] = [len(pat_df.query(f'dataset=="{_ds}"'))]
+
+    pd.DataFrame(_demographics).
+    
+    """,
+    name="_"
+)
 
 
 @app.cell(hide_code=True)
@@ -1275,10 +1288,19 @@ def _(pd, plt, sns, spidy):
     plt.savefig("regional_major_attention_flair.png")
     plt.show()
 
-    grid = sns.FacetGrid(regions_long_df, col='dataset', col_wrap=4, hue="dataset", sharey=True, sharex=True)
-    grid.map_dataframe(sns.barplot, "value", "region" )
+    grid = sns.FacetGrid(
+        regions_long_df,
+        col="dataset",
+        col_wrap=4,
+        hue="dataset",
+        sharey=True,
+        sharex=True,
+        height=4,
+        aspect=1.5
+    )
+    grid.map_dataframe(sns.barplot, "value", "region")
     grid.fig.tight_layout(w_pad=1)
-
+    grid.set_titles(col_template="{col_name}")  
     plt.show()
     ##### T1w
 
@@ -1305,11 +1327,22 @@ def _(pd, plt, sns, spidy):
     plt.savefig("regional_major_attention_t1w.png")
     plt.show()
 
-    grid = sns.FacetGrid(regions_long_df, col='dataset', col_wrap=1, hue="dataset")
-    grid.map(sns.barplot, "value", "region", )
+    grid = sns.FacetGrid(
+        regions_long_df,
+        col="dataset",
+        col_wrap=4,
+        hue="dataset",
+        sharey=True,
+        sharex=True,
+        height=4,
+        aspect=1.5
+    )
+    grid.map_dataframe(sns.barplot, "value", "region")
+    grid.fig.tight_layout(w_pad=1)
+    grid.set_titles(col_template="{col_name}")
+
 
     plt.show()
-
     return region_df, regions_long_df
 
 
