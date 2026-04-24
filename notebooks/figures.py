@@ -343,9 +343,7 @@ def _(columns, data_dir, dataset_order, join, patientstable, pd):
     pat_df = pd.read_csv(patientstable, dtype={"site_x": str})
     pat_df.site_x = pat_df.site_x.str.replace(".0", "")
     # get list of patients in test-dataset
-    test_ids = pd.read_csv(
-        join(data_dir, "mspaths2", "t1w", "test", f"{columns[0]}.csv")
-    ).eid.to_list()
+    test_ids = pd.read_csv(join(data_dir, "mspaths2", "t1w", "test", f"{columns[0]}.csv")).eid.to_list()
 
     # get list of patients in training-dataset
     training_ids = pd.read_csv(
@@ -357,29 +355,46 @@ def _(columns, data_dir, dataset_order, join, patientstable, pd):
         join(data_dir, "mspaths", "t1w", "val", f"{columns[0]}.csv")
     ).eid.to_list()
 
+    internal_test_ids = pd.read_csv(
+        join(data_dir, "mspaths", "t1w", "test", f"{columns[0]}.csv")
+    )
+
     pat_df.loc[pat_df.eid.isin(training_ids), "dataset"] = "training"
     pat_df.loc[pat_df.eid.isin(validation_ids), "dataset"] = "validation"
     pat_df.loc[pat_df.eid.isin(test_ids), "dataset"] = "test"
+    pat_df.loc[pat_df.eid.isin(internal_test_ids), "dataset"] = "internal_test"
 
     pat_df["dataset"] = pd.Categorical(
         pat_df["dataset"], categories=dataset_order, ordered=True
     )
 
     len(pat_df.eid.unique())
-    return (pat_df,)
+    return internal_test_ids, pat_df
 
 
-app._unparsable_cell(
-    r"""
+@app.cell
+def _(internal_test_ids):
+    internal_test_ids 
+    return
+
+
+@app.cell
+def _(pat_df):
+    pat_df
+    return
+
+
+@app.cell
+def _(pat_df, pd):
     _demographics = {}
-    for _ds in ['training', 'validation', 'test']:
+    for _ds in ['training', 'validation', 'test', 'internal_test']:
         _demographics[_ds] = [len(pat_df.query(f'dataset=="{_ds}"'))]
 
-    pd.DataFrame(_demographics).
-    
-    """,
-    name="_"
-)
+    _df = pd.DataFrame(_demographics).transpose()
+    _df.columns = ['count']
+    print(_df['count'].sum())
+    print(_df)
+    return
 
 
 @app.cell(hide_code=True)
