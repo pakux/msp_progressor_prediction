@@ -12,8 +12,7 @@ def _():
 
     baseline_characteristics_df = pd.read_csv('baseline_characteristics.csv')
     len(baseline_characteristics_df.query('sex == "female"'))
-
-    return baseline_characteristics_df, pd
+    return baseline_characteristics_df, mo, pd
 
 
 @app.cell
@@ -27,7 +26,7 @@ def _(baseline_characteristics_df, pd):
 
 
     demographics['pdds'] = [len(baseline_characteristics_df.query('pdds_scr.notnull()')), 
-                        
+
                             baseline_characteristics_df.pdds_scr.mean(), baseline_characteristics_df.pdds_scr.std()]
 
 
@@ -38,6 +37,32 @@ def _(baseline_characteristics_df, pd):
 
 
     demographics
+    return
+
+
+@app.cell
+def _(baseline_characteristics_df):
+    mstype_counts = baseline_characteristics_df['mstype'].value_counts()
+    mstype_counts_percentage = (mstype_counts / len(baseline_characteristics_df.query('mstype.notnull()'))) * 100
+
+    print(mstype_counts)
+    print(mstype_counts_percentage)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Demographics
+
+    | Category | Count | Percentage |
+    | --- | --- | --- |
+    | Clinically Isolated Syndrome |  |  |
+    | Relapsing Remitting MS |  |  |
+    | Secondary Progressive MS |  |  |
+    | Primary Progressive MS |  |  |
+    | Other |  |  |
+    """)
     return
 
 
