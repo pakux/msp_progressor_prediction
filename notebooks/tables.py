@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.8"
+__generated_with = "0.23.3"
 app = marimo.App(width="medium")
 
 
@@ -12,7 +12,6 @@ def _():
 
     baseline_characteristics_df = pd.read_csv('baseline_characteristics.csv')
     len(baseline_characteristics_df.query('sex == "female"'))
-
     return baseline_characteristics_df, pd
 
 
@@ -27,7 +26,7 @@ def _(baseline_characteristics_df, pd):
 
 
     demographics['pdds'] = [len(baseline_characteristics_df.query('pdds_scr.notnull()')), 
-                        
+
                             baseline_characteristics_df.pdds_scr.mean(), baseline_characteristics_df.pdds_scr.std()]
 
 
