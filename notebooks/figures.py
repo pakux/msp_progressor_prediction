@@ -405,6 +405,12 @@ def _(mo):
     return
 
 
+@app.cell
+def _(pat_df):
+    pat_df.eid.unique()
+    return
+
+
 @app.cell(hide_code=True)
 def _(cmap, pat_df, pd, plt):
     _ax = pd.crosstab(pat_df["site_x"], pat_df["dataset"]).plot(
@@ -1246,7 +1252,7 @@ def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
             plot_img(
                 img=join("flair-true-pos_same-t1w", heatmap),
                 bg_img=join("flair-true-pos_same-t1w", map),
-                cut_coords=[31, 38, 44, 50, 60],
+                cut_coords=[31, 38, 50 ],
                 display_mode="z",
                 radiological=True,
                 cmap=cmcrameri.cm.roma_r,
@@ -1298,6 +1304,8 @@ def _(pd, plt, sns, spidy):
     )
 
     _ax.set_title("Regional Attention - FLAIR")
+    _ax.set_rlim([0,0.055])
+
     plt.legend(bbox_to_anchor=(1.7, 1.2))
     plt.savefig("regional_major_attention_flair.svg")
     plt.savefig("regional_major_attention_flair.png")
@@ -1337,6 +1345,9 @@ def _(pd, plt, sns, spidy):
         # palette=cmap,
     )
     _ax.set_title("Regional Attention - T1w")
+    _ax.set_rlim([0,0.055])
+
+
     plt.legend(bbox_to_anchor=(1.7, 1.2))
     plt.savefig("regional_major_attention_t1w.svg")
     plt.savefig("regional_major_attention_t1w.png")
