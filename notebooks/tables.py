@@ -16,6 +16,11 @@ def _():
 
 
 @app.cell
+def _():
+    return
+
+
+@app.cell
 def _(baseline_characteristics_df, pd):
     demographics = {}
 
@@ -47,6 +52,11 @@ def _(baseline_characteristics_df):
 
     print(mstype_counts)
     print(mstype_counts_percentage)
+    return
+
+
+@app.cell
+def _():
     return
 
 
