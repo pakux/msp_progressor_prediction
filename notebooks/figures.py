@@ -33,7 +33,7 @@ def _(mo):
     from os import makedirs
     from os.path import abspath, basename, dirname, join
     from pathlib import Path
-
+    import nibabel as nib
     import cmcrameri
     import matplotlib.pyplot as plt
     import numpy as np
@@ -116,6 +116,7 @@ def _(mo):
         logrank_test,
         makedirs,
         models_dir,
+        nib,
         np,
         palette,
         patientstable,
@@ -1100,7 +1101,7 @@ def _(df_t1w, kmplots):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     ## Kaplan Meier Curves for FLAIR
@@ -1111,18 +1112,6 @@ def _(mo):
 @app.cell
 def _(df_flair, kmplots):
     kmplots(df_flair, "FLAIR")
-    return
-
-
-@app.cell
-def _(df_t1w):
-    df_t1w
-    return
-
-
-@app.cell
-def _(df_t1w):
-    df_t1w
     return
 
 
@@ -1223,15 +1212,46 @@ def _(top_100_results):
 
 
 @app.cell
-def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
+def _():
+    max(4,3)
+    return
+
+
+@app.cell
+def _(
+    basename,
+    cmcrameri,
+    glob,
+    join,
+    modalities,
+    nib,
+    plot_img,
+    plt,
+    test_names,
+):
     import re
 
+
+    selected_slices = [31,38,50]
     pattern = re.compile(r"sub-(?P<sub>[^_]+)_mod-.*_desc-.*_heatmap\.nii\.gz")
     # m = pattern.search("sub-ABC123_mod-{modality}_desc-{test}_heatmap.nii.gz")
 
     _modality = "FLAIR"
     _test = "PST"
 
+
+    # find highest attention
+    max_attention = 0
+    for _modality in modalities:
+        for _test in test_names:
+            heatmap = basename(
+                glob(
+                    f"flair-true-pos_same-t1w/sub-*_mod-{_modality}_desc-{_test.upper()}_heatmap.nii.gz"
+                )[0]
+            )
+            for z in selected_slices: 
+                max_attention = max(max_attention, nib.load(join("flair-true-pos_same-t1w",heatmap)).get_fdata()[:,:,z].max())
+        
     for _modality in modalities:
         for _test in test_names:
             print(f"{_modality} for test {_test}")
@@ -1252,7 +1272,7 @@ def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
             plot_img(
                 img=join("flair-true-pos_same-t1w", heatmap),
                 bg_img=join("flair-true-pos_same-t1w", map),
-                cut_coords=[31, 38, 50 ],
+                cut_coords=selected_slices,
                 display_mode="z",
                 radiological=True,
                 cmap=cmcrameri.cm.roma_r,
@@ -1263,13 +1283,20 @@ def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
                 black_bg=True,
                 title=f"{_modality} {_test.upper()}",
                 vmin=0,
-                vmax=1,
+                vmax=max_attention,
                 annotate=False,
             )
             plt.savefig(
                 join("flair-true-pos_same-t1w", f"{_modality}_{_test}.svg")
             )
             plt.show()
+    return
+
+
+@app.cell
+def _():
+
+
     return
 
 
