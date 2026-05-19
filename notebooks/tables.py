@@ -17,9 +17,9 @@ def _():
 
 
     baseline_characteristics_df = baseline_characteristics_df.merge(
-        right=dataset_df, left_on="eid", right_on="eid"
+        right=dataset_df, left_on="mpi", right_on="eid"
     )
-    return baseline_characteristics_df, mo, pd
+    return baseline_characteristics_df, dataset_df, mo, pd
 
 
 @app.cell
@@ -64,6 +64,12 @@ def _(baseline_characteristics_df, pd):
             )
         ),
     ]
+    demographics["mstype_prms"] = [
+       pd.NA,
+        len(
+            baseline_characteristics_df.query('mstype == "Progressive Relapsing MS"')
+        ),  
+    ] 
     demographics["mstype_rrms"] = [
         pd.NA,
         len(
@@ -137,6 +143,13 @@ def _(baseline_characteristics_df, pd):
                 )
             )
         )
+        demographics["mstype_prms"].append(
+            len(
+                baseline_characteristics_df.query(
+                    'dataset == @ds and mstype == "Progressive Relapsing MS"'
+                )
+            )
+        )
 
         demographics["mstype_rrms"].append(
             len(
@@ -185,7 +198,30 @@ def _(baseline_characteristics_df):
 
 
 @app.cell
-def _():
+def _(dataset_df):
+    for _ds in dataset_df.dataset.unique():
+        _per = len(dataset_df.query(f'dataset == "{_ds}"')) * 100.0 / len(dataset_df) 
+        print(f'{_ds}: {_per}')
+    return
+
+
+@app.cell
+def _(dataset_df):
+    dataset_df
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Median time between MRI and baseline functional assessment
+    """)
+    return
+
+
+@app.cell
+def _(baseline_characteristics_df, pd):
+    pd.to_datetime(baseline_characteristics_df.sty_date.str.replace('.0',''), unit="s", errors="coerce")
     return
 
 
