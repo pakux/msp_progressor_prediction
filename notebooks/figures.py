@@ -95,6 +95,24 @@ def _(mo):
     sns.set_context("talk")
 
     dataset_order = ["training", "validation", "test"]
+
+
+    # #FF69B4 (Hot Pink)	#4169E1 (Royal Blue) #000000
+    # #FFB6C1 (Light Pink)	#00008B (Dark Blue)
+    # #E91E63 (Deep Pink)	#1976D2 (Blue)
+    # #D147A3 (Magenta)	#009688 (Teal)
+    # #F48FB1 (Pink Rose)	#2196F3 (Light Blue)
+    # #C2185B (Deep Red)	#3F51B5 (Indigo)
+    # #FF80AB (Peach Pink)	#00BCD4 (Cyan)
+    # #E040FB (Purple)	#FF5722 (Orange)
+    # #F8BBD0 (Lavender Pink)	#4CAF50 (Green)
+
+
+    color_female = "#1E8F89"
+    color_male = "#EE5B45"
+
+
+
     return (
         DataLoader,
         F,
@@ -105,6 +123,8 @@ def _(mo):
         basename,
         cmap,
         cmcrameri,
+        color_female,
+        color_male,
         columns,
         data_dir,
         dataloader,
@@ -118,7 +138,6 @@ def _(mo):
         models_dir,
         nib,
         np,
-        palette,
         patientstable,
         pd,
         plot_img,
@@ -339,12 +358,21 @@ def _(mo):
 
 
 @app.cell
+def _(patientstable, pd):
+    pat_df2 = pd.read_csv(patientstable, dtype={"site": str})
+    pat_df2
+    return
+
+
+@app.cell
 def _(columns, data_dir, dataset_order, join, patientstable, pd):
     # read patients characteristics table:
-    pat_df = pd.read_csv(patientstable, dtype={"site_x": str})
-    pat_df.site_x = pat_df.site_x.str.replace(".0", "")
+    pat_df = pd.read_csv(patientstable, dtype={"site": str})
+    pat_df.site = pat_df.site.str.replace(".0", "")
     # get list of patients in test-dataset
-    test_ids = pd.read_csv(join(data_dir, "mspaths2", "t1w", "test", f"{columns[0]}.csv")).eid.to_list()
+    test_ids = pd.read_csv(
+        join(data_dir, "mspaths2", "t1w", "test", f"{columns[0]}.csv")
+    ).eid.to_list()
 
     # get list of patients in training-dataset
     training_ids = pd.read_csv(
@@ -356,27 +384,18 @@ def _(columns, data_dir, dataset_order, join, patientstable, pd):
         join(data_dir, "mspaths", "t1w", "val", f"{columns[0]}.csv")
     ).eid.to_list()
 
-    internal_test_ids = pd.read_csv(
-        join(data_dir, "mspaths", "t1w", "test", f"{columns[0]}.csv")
-    )
 
-    pat_df.loc[pat_df.eid.isin(training_ids), "dataset"] = "training"
-    pat_df.loc[pat_df.eid.isin(validation_ids), "dataset"] = "validation"
-    pat_df.loc[pat_df.eid.isin(test_ids), "dataset"] = "test"
-    pat_df.loc[pat_df.eid.isin(internal_test_ids), "dataset"] = "internal_test"
+    pat_df.loc[pat_df.mpi.isin(training_ids), "dataset"] = "training"
+    pat_df.loc[pat_df.mpi.isin(validation_ids), "dataset"] = "validation"
+    pat_df.loc[pat_df.mpi.isin(test_ids), "dataset"] = "test"
+
 
     pat_df["dataset"] = pd.Categorical(
         pat_df["dataset"], categories=dataset_order, ordered=True
     )
 
-    len(pat_df.eid.unique())
-    return internal_test_ids, pat_df
-
-
-@app.cell
-def _(internal_test_ids):
-    internal_test_ids 
-    return
+    len(pat_df.mpi.unique())
+    return (pat_df,)
 
 
 @app.cell
@@ -388,12 +407,12 @@ def _(pat_df):
 @app.cell
 def _(pat_df, pd):
     _demographics = {}
-    for _ds in ['training', 'validation', 'test', 'internal_test']:
+    for _ds in ["training", "validation", "test", "internal_test"]:
         _demographics[_ds] = [len(pat_df.query(f'dataset=="{_ds}"'))]
 
     _df = pd.DataFrame(_demographics).transpose()
-    _df.columns = ['count']
-    print(_df['count'].sum())
+    _df.columns = ["count"]
+    print(_df["count"].sum())
     print(_df)
     return
 
@@ -408,13 +427,29 @@ def _(mo):
 
 @app.cell
 def _(pat_df):
-    pat_df.eid.unique()
+    pat_df.mpi.unique()
+    return
+
+
+@app.cell
+def _(pat_df, pd):
+    _demographics = {}
+    for _ds in pat_df.dataset.unique():
+        _demographics[_ds] = [len(pat_df.query(f'dataset=="{_ds}"'))]
+
+    _df = pd.DataFrame(_demographics).transpose()
+    _df.columns = ["count"]
+
+    percentage_df = _df["count"].apply(
+        lambda x: (x / len(pat_df.mpi.unique())) * 100
+    )
+    percentage_df
     return
 
 
 @app.cell(hide_code=True)
 def _(cmap, pat_df, pd, plt):
-    _ax = pd.crosstab(pat_df["site_x"], pat_df["dataset"]).plot(
+    _ax = pd.crosstab(pat_df["site"], pat_df["dataset"]).plot(
         kind="barh", stacked=True, cmap=cmap
     )
 
@@ -427,8 +462,8 @@ def _(cmap, pat_df, pd, plt):
 
 
 @app.cell(hide_code=True)
-def _(pat_df, pd, plt):
-    _colors = ["#EF233C", "#2B2D42"]
+def _(color_female, color_male, pat_df, pd, plt):
+    _colors = [color_female, color_male]
 
     _ax = pd.crosstab(pat_df["dataset"], pat_df["sex"]).plot(
         kind="barh", stacked=True, legend=False, color=_colors
@@ -450,8 +485,13 @@ def _(pat_df, pd, plt):
     return
 
 
+@app.cell
+def _():
+    return
+
+
 @app.cell(hide_code=True)
-def _(dataset_order, ks_2samp, palette, pat_df, plt, sns):
+def _(color_female, color_male, ks_2samp, pat_df, plt, sns):
     ages_train = pat_df.loc[pat_df["dataset"] == "training", "age"]
     ages_test = pat_df.loc[pat_df["dataset"] == "test", "age"]
     ks_stat, p = ks_2samp(ages_train, ages_test)
@@ -460,15 +500,31 @@ def _(dataset_order, ks_2samp, palette, pat_df, plt, sns):
 
     plt.figure(figsize=(8, 5))
     sns.violinplot(
-        data=pat_df,
+        data=pat_df.query('sex in ["female", "male"]'),
         x="dataset",
         y="age",
-        inner="box",
-        hue="dataset",
+        inner="quart",
+        hue="sex",
         cut=0,
-        hue_order=dataset_order,
-        palette=palette,
+        hue_order=["female", "male"],
+        palette=[color_female, color_male],
+
+        split=True
     )
+    ### We dont need stripplot - have enough data
+    #sns.stripplot(
+    #    data=pat_df.query('sex in ["female", "male"]'),
+    #    x="dataset",
+    #    y="age",
+    #    hue="sex",
+    #    hue_order=["female", "male"],
+    #    # palette=[color_female, color_male],
+    #    dodge = True,
+    #    palette=[color_female, color_male],
+    #    linewidth=0.1,
+    #    alpha=0.1
+    #)
+
     plt.xlabel("Dataset")
     plt.ylabel("Age")
     plt.title("")
@@ -1090,6 +1146,16 @@ def _(
 
 
 @app.cell
+def _(columns, data_dir, join, pd):
+
+    for _column in columns:
+        _data_df = pd.read_csv(join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv"))
+
+        print(_data_df)
+    return
+
+
+@app.cell
 def _(df_t1w):
     df_t1w
     return
@@ -1213,7 +1279,7 @@ def _(top_100_results):
 
 @app.cell
 def _():
-    max(4,3)
+    max(4, 3)
     return
 
 
@@ -1232,7 +1298,7 @@ def _(
     import re
 
 
-    selected_slices = [31,38,50]
+    selected_slices = [31, 38, 50]
     pattern = re.compile(r"sub-(?P<sub>[^_]+)_mod-.*_desc-.*_heatmap\.nii\.gz")
     # m = pattern.search("sub-ABC123_mod-{modality}_desc-{test}_heatmap.nii.gz")
 
@@ -1249,9 +1315,14 @@ def _(
                     f"flair-true-pos_same-t1w/sub-*_mod-{_modality}_desc-{_test.upper()}_heatmap.nii.gz"
                 )[0]
             )
-            for z in selected_slices: 
-                max_attention = max(max_attention, nib.load(join("flair-true-pos_same-t1w",heatmap)).get_fdata()[:,:,z].max())
-        
+            for z in selected_slices:
+                max_attention = max(
+                    max_attention,
+                    nib.load(join("flair-true-pos_same-t1w", heatmap))
+                    .get_fdata()[:, :, z]
+                    .max(),
+                )
+
     for _modality in modalities:
         for _test in test_names:
             print(f"{_modality} for test {_test}")
@@ -1295,8 +1366,6 @@ def _(
 
 @app.cell
 def _():
-
-
     return
 
 
@@ -1331,7 +1400,7 @@ def _(pd, plt, sns, spidy):
     )
 
     _ax.set_title("Regional Attention - FLAIR")
-    _ax.set_rlim([0,0.055])
+    _ax.set_rlim([0, 0.055])
 
     plt.legend(bbox_to_anchor=(1.7, 1.2))
     plt.savefig("regional_major_attention_flair.svg")
@@ -1346,11 +1415,11 @@ def _(pd, plt, sns, spidy):
         sharey=True,
         sharex=True,
         height=4,
-        aspect=1.5
+        aspect=1.5,
     )
     grid.map_dataframe(sns.barplot, "value", "region")
     grid.fig.tight_layout(w_pad=1)
-    grid.set_titles(col_template="{col_name}")  
+    grid.set_titles(col_template="{col_name}")
     plt.show()
     ##### T1w
 
@@ -1372,7 +1441,7 @@ def _(pd, plt, sns, spidy):
         # palette=cmap,
     )
     _ax.set_title("Regional Attention - T1w")
-    _ax.set_rlim([0,0.055])
+    _ax.set_rlim([0, 0.055])
 
 
     plt.legend(bbox_to_anchor=(1.7, 1.2))
@@ -1388,7 +1457,7 @@ def _(pd, plt, sns, spidy):
         sharey=True,
         sharex=True,
         height=4,
-        aspect=1.5
+        aspect=1.5,
     )
     grid.map_dataframe(sns.barplot, "value", "region")
     grid.fig.tight_layout(w_pad=1)

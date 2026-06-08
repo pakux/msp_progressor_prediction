@@ -23,8 +23,8 @@ def _():
 
 
 @app.cell
-def _(baseline_characteristics_df):
-    baseline_characteristics_df.sex.unique()
+def _(dataset_df):
+    dataset_df
     return
 
 
@@ -37,7 +37,7 @@ def _(baseline_characteristics_df, pd):
     _sex_f = len(baseline_characteristics_df.query('sex == "female"'))
     demographics["sex"] = [ _sex_ds, _sex_f, _sex_f * 100.0 / _sex_ds]
 
-
+                                    
 
     demographics["age"] = [
         len(baseline_characteristics_df.query("age.notnull()")),
@@ -179,9 +179,23 @@ def _(baseline_characteristics_df, pd):
     return
 
 
-@app.cell
-def _():
-    # pd.DataFrame(demographics)
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Demographics
+
+
+    """)
+
+    mo.md(r"""
+    \begin{tabular}{lrr}
+    \toprule
+        Category & Count & Percentage \\
+    \midrule
+
+    \bottomrule
+    \end{tabular}
+    """)
     return
 
 
