@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.8"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium", app_title="Figures and plots")
 
 
@@ -110,9 +110,6 @@ def _(mo):
 
     color_female = "#1E8F89"
     color_male = "#EE5B45"
-
-
-
     return (
         DataLoader,
         F,

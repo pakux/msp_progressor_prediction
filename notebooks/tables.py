@@ -1,25 +1,61 @@
 import marimo
 
-__generated_with = "0.19.8"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
+
+
+@app.cell
+def _():
+    return
 
 
 @app.cell
 def _():
     import marimo as mo
     import pandas as pd
+    from os.path import join, abspath
 
+    tests = ['pst', 'mdt', 'wst', 'cst']
 
     baseline_characteristics_df = pd.read_csv("baseline_characteristics.csv")
-    len(baseline_characteristics_df.query('sex == "female"'))
+    baseline_characteristics_df.mstype
 
-    dataset_df = pd.read_csv("eid_distribution.csv")
+    baseline_characteristics_df['mstype'] = baseline_characteristics_df['mstype'].replace('rr', 'Relapsing Remitting MS')
+    baseline_characteristics_df['mstype'] = baseline_characteristics_df['mstype'].replace('sp', 'Secondary Progressive MS')
+    baseline_characteristics_df['mstype'] = baseline_characteristics_df['mstype'].replace('pp', 'Primary Progressive MS')
+    baseline_characteristics_df['mstype'] = baseline_characteristics_df['mstype'].replace('Secondary Progressing MS', 'Secondary Progressive MS')
+
+    # dataset_df = pd.read_csv("eid_distribution.csv") # TODO: delete the file when this works
+
+    dataset_df = pd.read_csv('data/dataset.csv')
+    dataset_df = dataset_df.drop(columns=['site', 'sex'])
+
+
 
 
     baseline_characteristics_df = baseline_characteristics_df.merge(
         right=dataset_df, left_on="mpi", right_on="eid"
     )
+
+    baseline_characteristics_df = baseline_characteristics_df.query('dataset.notnull()')
     return baseline_characteristics_df, dataset_df, mo, pd
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Read eid distribution from  `training`, `validation` and `external test` datasets.
+    We need to keep in mind, that some ID's are not available for all tests.
+
+    Maybe I should
+
+    |                | Total | PST | MDT | WST | CST |
+    | -------------- | ---   | --- | --- | --- | --- |
+    | Task Completed |  nt   | nt  | nt  | nt. | nt  |
+    | Age  mean (SD) |
+    | sex female (%) |
+    """)
+    return
 
 
 @app.cell
@@ -29,32 +65,33 @@ def _(dataset_df):
 
 
 @app.cell
+def _(baseline_characteristics_df):
+    baseline_characteristics_df.drop_duplicates(subset='mpi')
+    return
+
+
+@app.cell
 def _(baseline_characteristics_df, pd):
     demographics = {}
-    demographics["dataset"] = ["all"]
+    demographics["dataset"] = ["all n", "all value"]
 
     _sex_ds = len(baseline_characteristics_df.query('sex.notnull()'))
     _sex_f = len(baseline_characteristics_df.query('sex == "female"'))
-    demographics["sex"] = [ _sex_ds, _sex_f, _sex_f * 100.0 / _sex_ds]
-
-                                    
-
+    demographics["sex"] = [_sex_ds, f"{_sex_f} ({_sex_f / _sex_ds:0.2%})"]
     demographics["age"] = [
         len(baseline_characteristics_df.query("age.notnull()")),
-        baseline_characteristics_df.age.mean(),
-        baseline_characteristics_df.age.std(),
+    f"{baseline_characteristics_df.age.mean():0.1f} ± {   baseline_characteristics_df.age.std():0.2f}"
     ]
     demographics["mstype"] = [
-        len(baseline_characteristics_df.query("mstype.notnull()"))
+        len(baseline_characteristics_df.query("mstype.notnull()")), ""
     ]
 
 
     demographics["pdds"] = [
         len(baseline_characteristics_df.query("pdds_scr.notnull()")),
-        baseline_characteristics_df.pdds_scr.mean(),
-        baseline_characteristics_df.pdds_scr.std(),
+    f"{baseline_characteristics_df.pdds_scr.mean()} ± {
+        baseline_characteristics_df.pdds_scr.std():0.2f}"
     ]
-
 
     demographics["mstype_cis"] = [
         pd.NA,
@@ -94,12 +131,13 @@ def _(baseline_characteristics_df, pd):
 
     for ds in baseline_characteristics_df.dataset.unique():
 
-        demographics["dataset"].append(ds)
+        demographics["dataset"].append(f"{ds} n")
+        demographics["dataset"].append(f"{ds} value")
+    
         _sex_ds = len(baseline_characteristics_df.query('dataset == @ds and sex.notnull()'))
         _sex_f = len(baseline_characteristics_df.query('dataset == @ds and sex == "female"'))
         demographics["sex"].append(_sex_ds)
-        demographics["sex"].append(_sex_f)
-        demographics["sex"].append(_sex_f * 100.0 / _sex_ds)
+        demographics["sex"].append( f"{_sex_f} ({_sex_f / _sex_ds:0.2%})")
 
         demographics["age"].append( len(
                 baseline_characteristics_df.query(
@@ -108,10 +146,8 @@ def _(baseline_characteristics_df, pd):
             )
         )
         demographics["age"].append(
-            baseline_characteristics_df.query("dataset == @ds").age.mean()
-        )
-        demographics["age"].append(
-            baseline_characteristics_df.query("dataset == @ds").age.std()
+            f'{baseline_characteristics_df.query("dataset== @ds").age.mean():0.1f} ± {   baseline_characteristics_df.query("dataset== @ds").age.std():0.2f}'
+
         )
 
         demographics["mstype"].append(
@@ -121,6 +157,7 @@ def _(baseline_characteristics_df, pd):
                 )
             )
         )
+        demographics["mstype"].append(pd.NA)
 
         demographics["pdds"].append(
             len(
@@ -130,11 +167,8 @@ def _(baseline_characteristics_df, pd):
             )
         )
         demographics["pdds"].append(
-            baseline_characteristics_df.query("dataset == @ds").pdds_scr.mean()
-        )
-        demographics["pdds"].append(
-            baseline_characteristics_df.query("dataset == @ds").pdds_scr.std()
-        )
+    f"{baseline_characteristics_df.query("dataset == @ds").pdds_scr.mean()} ± {
+        baseline_characteristics_df.query("dataset == @ds").pdds_scr.std():0.2f}" )
 
         demographics["mstype_cis"].append(
             len(
@@ -143,13 +177,16 @@ def _(baseline_characteristics_df, pd):
                 )
             )
         )
+        demographics["mstype_cis"].append(pd.NA)
+
         demographics["mstype_prms"].append(
             len(
                 baseline_characteristics_df.query(
-                    'dataset == @ds and mstype == "Progressive Relapsing MS"'
+                    'dataset== @ds and mstype == "Progressive Relapsing MS"'
                 )
             )
         )
+        demographics["mstype_prms"].append(pd.NA)
 
         demographics["mstype_rrms"].append(
             len(
@@ -157,7 +194,10 @@ def _(baseline_characteristics_df, pd):
                     'dataset == @ds and mstype == "Relapsing Remitting MS"'
                 )
             )
-        )
+        )    
+        demographics["mstype_rrms"].append(pd.NA)
+
+    
         demographics["mstype_spms"].append(
             len(
                 baseline_characteristics_df.query(
@@ -165,6 +205,9 @@ def _(baseline_characteristics_df, pd):
                 )
             )
         )
+        demographics["mstype_spms"].append(pd.NA)
+
+    
         demographics["mstype_ppms"].append(
             len(
                 baseline_characteristics_df.query(
@@ -172,10 +215,22 @@ def _(baseline_characteristics_df, pd):
                 )
             )
         )
+        demographics["mstype_ppms"].append(pd.NA)
+
 
 
     # pd.DataFrame(demographics)
     demographics
+    pd.DataFrame(demographics).transpose()
+
+
+
+    return (demographics,)
+
+
+@app.cell
+def _(demographics, pd):
+    pd.DataFrame(demographics).transpose()
     return
 
 
