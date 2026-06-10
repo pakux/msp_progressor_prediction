@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.9"
-app = marimo.App(width="medium")
+app = marimo.App(width="full")
 
 
 @app.cell
@@ -59,18 +59,6 @@ def _(mo):
 
 
 @app.cell
-def _(dataset_df):
-    dataset_df
-    return
-
-
-@app.cell
-def _(baseline_characteristics_df):
-    baseline_characteristics_df.drop_duplicates(subset='mpi')
-    return
-
-
-@app.cell
 def _(baseline_characteristics_df, pd):
     demographics = {}
     demographics["dataset"] = ["all n", "all value"]
@@ -89,7 +77,7 @@ def _(baseline_characteristics_df, pd):
 
     demographics["pdds"] = [
         len(baseline_characteristics_df.query("pdds_scr.notnull()")),
-    f"{baseline_characteristics_df.pdds_scr.mean()} ± {
+    f"{baseline_characteristics_df.pdds_scr.mean():0.1f} ± {
         baseline_characteristics_df.pdds_scr.std():0.2f}"
     ]
 
@@ -129,11 +117,11 @@ def _(baseline_characteristics_df, pd):
     ]
 
 
-    for ds in baseline_characteristics_df.dataset.unique():
+    for ds in["training", "validation", "external test"]:
 
         demographics["dataset"].append(f"{ds} n")
         demographics["dataset"].append(f"{ds} value")
-    
+
         _sex_ds = len(baseline_characteristics_df.query('dataset == @ds and sex.notnull()'))
         _sex_f = len(baseline_characteristics_df.query('dataset == @ds and sex == "female"'))
         demographics["sex"].append(_sex_ds)
@@ -167,7 +155,7 @@ def _(baseline_characteristics_df, pd):
             )
         )
         demographics["pdds"].append(
-    f"{baseline_characteristics_df.query("dataset == @ds").pdds_scr.mean()} ± {
+    f"{baseline_characteristics_df.query("dataset == @ds").pdds_scr.mean():0.1f} ± {
         baseline_characteristics_df.query("dataset == @ds").pdds_scr.std():0.2f}" )
 
         demographics["mstype_cis"].append(
@@ -197,7 +185,7 @@ def _(baseline_characteristics_df, pd):
         )    
         demographics["mstype_rrms"].append(pd.NA)
 
-    
+
         demographics["mstype_spms"].append(
             len(
                 baseline_characteristics_df.query(
@@ -207,7 +195,7 @@ def _(baseline_characteristics_df, pd):
         )
         demographics["mstype_spms"].append(pd.NA)
 
-    
+
         demographics["mstype_ppms"].append(
             len(
                 baseline_characteristics_df.query(
@@ -224,13 +212,6 @@ def _(baseline_characteristics_df, pd):
     pd.DataFrame(demographics).transpose()
 
 
-
-    return (demographics,)
-
-
-@app.cell
-def _(demographics, pd):
-    pd.DataFrame(demographics).transpose()
     return
 
 
@@ -271,12 +252,6 @@ def _(dataset_df):
     for _ds in dataset_df.dataset.unique():
         _per = len(dataset_df.query(f'dataset == "{_ds}"')) * 100.0 / len(dataset_df) 
         print(f'{_ds}: {_per}')
-    return
-
-
-@app.cell
-def _(dataset_df):
-    dataset_df
     return
 
 
