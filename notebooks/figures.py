@@ -26,7 +26,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def setup_1(mo):
     import sys
     from glob import glob
     from math import pi
@@ -55,15 +55,18 @@ def _(mo):
     # braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
     #                                                             # will be used to load modules
     braindraindir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/"
+    braindraindir = "mnt/radbrain_dl/code/BrainTrain"
     patientstable = (
-        "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/baseline_characteristics.csv"
+        "baseline_characteristics.csv"
     )
-    patientstable = "../../../RadBrainDL_msp/baseline_characteristics.csv"
-    data_dir = "../../../RadBrainDL_msp/data/"
+    # patientstable = "../../../RadBrainDL_msp/baseline_characteristics.csv"
+    # data_dir = "../../../RadBrainDL_msp/data/"
     # data_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/"
+    data_dir = "/mnt/radbrain_dl/data/"
     models_dir = "models"
-    tensor_dir_test = "../../../RadBrainDL_msp/images/"
-    # tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
+    # tensor_dir_test = "../../../RadBrainDL_msp/images/"
+    tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
+    tensor_dir_test = "/mnt/radbrain_dl/images/"
 
     sys.path.append(braindraindir)
     try:
@@ -81,35 +84,24 @@ def _(mo):
     #    )
 
     columns = [
-        "worst_progression_pst_2z",
-        "worst_progression_mdt_2z",
-        "worst_progression_cst_2z",
-        "worst_progression_wst_2z",
+        "worst_progressor_2ycutoff_pst_2z",
+        "worst_progressor_2ycutoff_wst_2z",
+        "worst_progressor_2ycutoff_cst_2z",
+        "worst_progressor_2ycutoff_mdt_2z",
     ]
 
-    palette = sns.color_palette("tab10", 3)
+    palette = sns.color_palette("Set2", 3)
     cmap = ListedColormap(palette)
 
     sns.set_palette("tab10")
     sns.set_style("whitegrid")
-    sns.set_context("talk")
+    sns.set_context("paper")
 
     dataset_order = ["training", "validation", "test"]
 
 
-    # #FF69B4 (Hot Pink)	#4169E1 (Royal Blue) #000000
-    # #FFB6C1 (Light Pink)	#00008B (Dark Blue)
-    # #E91E63 (Deep Pink)	#1976D2 (Blue)
-    # #D147A3 (Magenta)	#009688 (Teal)
-    # #F48FB1 (Pink Rose)	#2196F3 (Light Blue)
-    # #C2185B (Deep Red)	#3F51B5 (Indigo)
-    # #FF80AB (Peach Pink)	#00BCD4 (Cyan)
-    # #E040FB (Purple)	#FF5722 (Orange)
-    # #F8BBD0 (Lavender Pink)	#4CAF50 (Green)
-
-
-    color_female = "#1E8F89"
-    color_male = "#EE5B45"
+    color_female = "#008080"
+    color_male = "#FFA500"
     return (
         DataLoader,
         F,
@@ -404,7 +396,7 @@ def _(pat_df):
 @app.cell
 def _(pat_df, pd):
     _demographics = {}
-    for _ds in ["training", "validation", "test", "internal_test"]:
+    for _ds in ["training", "validation", "test"]:
         _demographics[_ds] = [len(pat_df.query(f'dataset=="{_ds}"'))]
 
     _df = pd.DataFrame(_demographics).transpose()
@@ -444,7 +436,32 @@ def _(pat_df, pd):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
+def _(pat_df, pd, plt, sns):
+    # Create a barplot showing the train/test/validation split across centers
+    sns.set_palette("Accent")
+    _ax = pd.crosstab(pat_df["site"], pat_df["dataset"]).plot(
+        kind="bar", stacked=True, figsize=(10, 4), colormap='Set2', 
+    )
+
+    _ax.set_xlabel("Center ID")
+    _ax.set_ylabel("Number of Patients")
+    _ax.set_title("Distribution of Patients Across Training, Validation, and Test Sets by Center")
+    _ax.legend(title="Dataset", labels=["Training", "Validation", "Test"])
+
+    # Rotate x-axis labels for better readability
+    plt.xticks(rotation=45, ha='right')
+
+    # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+
+    # Save the plot
+    plt.savefig("center_distribution_split.svg")
+    plt.show()
+    return
+
+
+@app.cell
 def _(cmap, pat_df, pd, plt):
     _ax = pd.crosstab(pat_df["site"], pat_df["dataset"]).plot(
         kind="barh", stacked=True, cmap=cmap
@@ -483,8 +500,52 @@ def _(color_female, color_male, pat_df, pd, plt):
 
 
 @app.cell
-def _():
-    return
+def _(color_female, color_male, pat_df, pd, plt, sns):
+
+    # Set up the plotting style
+    sns.set_style("whitegrid")
+    sns.set_palette("Set2")
+
+    # Create figure with subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+
+    # 1) Bar plot showing count of males and females across datasets
+    dataset_order = ["training", "validation", "test"]
+    colors = [color_male, color_female]
+
+    # Create crosstab for gender distribution by dataset
+    gender_dist = pd.crosstab(pat_df["dataset"], pat_df["sex"])
+
+    # Plot bar chart
+    gender_dist.plot(kind="bar", ax=ax1, color=colors, edgecolor='black', linewidth=0.5)
+    ax1.set_xlabel("Dataset")
+    ax1.set_ylabel("Count")
+    ax1.set_title("Gender Distribution Across Datasets")
+    ax1.legend(title="Sex", labels=["Male", "Female"])
+    ax1.tick_params(axis='x', rotation=45)
+
+    # Add value labels on bars
+    for i, (dataset, row) in enumerate(gender_dist.iterrows()):
+        for j, (gender, count) in enumerate(row.items()):
+            ax1.text(j + i*0.1 - 0.15, count + 0.5, str(count), 
+                    ha='center', va='bottom', fontsize=10)
+
+    # 2) Pie chart showing overall gender distribution
+    gender_counts = pat_df["sex"].value_counts()
+    ax2.pie(gender_counts.values, labels=gender_counts.index, autopct='%1.1f%%', 
+            colors=colors, startangle=90)
+    ax2.set_title("Overall Gender Distribution")
+
+    plt.tight_layout()
+    plt.savefig("gender_distribution.svg")
+    plt.show()
+
+    # Print summary statistics
+    print("Gender distribution by dataset:")
+    print(pd.crosstab(pat_df["dataset"], pat_df["sex"]))
+    print("\nOverall gender counts:")
+    print(pat_df["sex"].value_counts())
+    return (dataset_order,)
 
 
 @app.cell(hide_code=True)
@@ -535,7 +596,7 @@ def _(color_female, color_male, ks_2samp, pat_df, plt, sns):
     return
 
 
-@app.cell(disabled=True)
+@app.cell
 def _(pat_df, plt, sns):
     import scikit_posthocs as sp  # für paarweise Dunn-Tests; optional
     from scipy import stats
@@ -669,58 +730,52 @@ def _(mo):
 def _(mo):
     diagram = """
     flowchart TD
-      A["3D T1-weighted MRI] --> B[Preprocessing"]
-      B --> B1{"Steps"}
-      B1 --> B1a["N4 bias field correction"]
-      B1 --> B1b["Skull-stripping"]
-      B1 --> B1c["Affine + nonlinear registration to template"]
-      B1 --> B1d["Intensity normalization (z-score)"]
-      B1 --> B1e["Resample to fixed voxel spacing & crop/pad to ROI"]
-      B --> C["Data augmentation (train only)"]
-      C --> C1{Augmentations}
-      C1 --> C1a[Random affine/elastic]
-      C1 --> C1b[Random intensity scaling]
-      C1 --> C1c[Random flips/crops]
-      C1 --> C1d[Gaussian noise]
-
-      C --> D[Backbone: Foundation 3D Encoder]
-      D --> D1[Pretrained on large 3D brain MRI corpus]
-      D --> D2[Architecture: 3D ViT / 3D Swin Transformer or 3D CNN]
-      D --> D3[Output: Global feature vector]
-
-      D --> E["Clinical embedding (optional)"]
-      E --> E1[Age, sex, disease duration, baseline PST/Dex scores]
-      E --> F[Concatenate features]
-      F --> G[Task heads]
-      G --> G1["Progression classifier (binary): Worsened >=2 z-scores"]
-      G --> G2["Regression head: predicted ΔPST z-score"]
-      G --> G3["Regression head: predicted ΔDex z-score"]
-      G --> G4["Uncertainty head: aleatoric + epistemic"]
-
-      G1 --> H[Losses]
-      G2 --> H
-      G3 --> H
-      G4 --> H
-      H --> H1{Combined loss}
-      H1 --> H1a["Binary cross-entropy (classifier)"]
-      H1 --> H1b["MSE or Huber (regressions)"]
-      H1 --> H1c["KL / MC-dropout loss (uncertainty)""]
-      H1 --> H1d["Class-balancing / focal loss if needed"]
-
-      H --> I[Training loop]
-      I --> I1[Fine-tune foundation encoder + heads]
-      I1 --> I2[Validation: AUROC, AUPRC, sensitivity at fixed specificity]
-      I1 --> I3[Calibration: reliability plots, expected calibration error]
-
-      I --> J["Explainability & QC"]
-      J --> J1["Saliency / Grad-CAM (3D)"]
-      J --> J2["SHAP on clinical + global features"]
-      J --> J3["Overlay predicted risk on MRI slices"]
-
-      J --> K[Deployment]
-      K --> K1["Input: single 3D T1 -> Preproc -> Model"]
-      K --> K2["Output: risk probability, predicted Δz-scores, uncertainty"]
-      K --> K3["Integration: clinical dashboard / decision support"]
+        A["3D T1-weighted MRI"] --> B["Preprocessing"]
+        B --> B1["Steps"]
+        B1 --> B1a["N4 bias field correction"]
+        B1 --> B1b["Skull-stripping"]
+        B1 --> B1c["Affine + nonlinear registration to template"]
+        B1 --> B1d["Intensity normalization (z-score)"]
+        B1 --> B1e["Resample to fixed voxel spacing & crop/pad to ROI"]
+        B --> C["Data augmentation (train only)"]
+        C --> C1["Augmentations"]
+        C1 --> C1a["Random affine/elastic"]
+        C1 --> C1b["Random intensity scaling"]
+        C1 --> C1c["Random flips/crops"]
+        C1 --> C1d["Gaussian noise"]
+        C --> D["Backbone: Foundation 3D Encoder"]
+        D --> D1["Pretrained on large 3D brain MRI corpus"]
+        D --> D2["Architecture: 3D ViT / 3D Swin Transformer or 3D CNN"]
+        D --> D3["Output: Global feature vector"]
+        D --> E["Clinical embedding (optional)"]
+        E --> E1["Age, sex, disease duration, baseline PST/Dex scores"]
+        E --> F["Concatenate features"]
+        F --> G["Task heads"]
+        G --> G1["Progression classifier (binary): Worsened >= 2 z-scores"]
+        G --> G2["Regression head: predicted ΔPST z-score"]
+        G --> G3["Regression head: predicted ΔDex z-score"]
+        G --> G4["Uncertainty head: aleatoric + epistemic"]
+        G1 --> H["Losses"]
+        G2 --> H
+        G3 --> H
+        G4 --> H
+        H --> H1["Combined loss"]
+        H1 --> H1a["Binary cross-entropy (classifier)"]
+        H1 --> H1b["MSE or Huber (regressions)"]
+        H1 --> H1c["KL / MC-dropout loss (uncertainty)"]
+        H1 --> H1d["Class-balancing / focal loss if needed"]
+        H --> I["Training loop"]
+        I --> I1["Fine-tune foundation encoder + heads"]
+        I1 --> I2["Validation: AUROC, AUPRC, sensitivity at fixed specificity"]
+        I1 --> I3["Calibration: reliability plots, expected calibration error"]
+        I --> J["Explainability & QC"]
+        J --> J1["Saliency / Grad-CAM (3D)"]
+        J --> J2["SHAP on clinical + global features"]
+        J --> J3["Overlay predicted risk on MRI slices"]
+        J --> K["Deployment"]
+        K --> K1["Input: single 3D T1 - Preproc - Model"]
+        K --> K2["Output: risk probability, predicted Δz-scores, uncertainty"]
+        K --> K3["Integration: clinical dashboard / decision support"]
     """
 
     mo.mermaid(diagram=diagram)

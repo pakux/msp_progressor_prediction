@@ -26,19 +26,25 @@ def _():
     baseline_characteristics_df['mstype'] = baseline_characteristics_df['mstype'].replace('Secondary Progressing MS', 'Secondary Progressive MS')
 
     # dataset_df = pd.read_csv("eid_distribution.csv") # TODO: delete the file when this works
-
     dataset_df = pd.read_csv('data/dataset.csv')
     dataset_df = dataset_df.drop(columns=['site', 'sex'])
-
-
-
-
     baseline_characteristics_df = baseline_characteristics_df.merge(
         right=dataset_df, left_on="mpi", right_on="eid"
     )
 
     baseline_characteristics_df = baseline_characteristics_df.query('dataset.notnull()')
-    return baseline_characteristics_df, dataset_df, mo, pd
+
+    def progression_col(testname):
+        return f"worst_progressor_2ycutoff_{testname}_2z"
+
+    return (
+        baseline_characteristics_df,
+        dataset_df,
+        mo,
+        pd,
+        progression_col,
+        tests,
+    )
 
 
 @app.cell(hide_code=True)
@@ -59,7 +65,7 @@ def _(mo):
 
 
 @app.cell
-def _(baseline_characteristics_df, pd):
+def _(baseline_characteristics_df, pd, progression_col, tests):
     demographics = {}
     demographics["dataset"] = ["all n", "all value"]
 
@@ -115,6 +121,9 @@ def _(baseline_characteristics_df, pd):
             baseline_characteristics_df.query('mstype == "Primary Progressive MS"')
         ),
     ]
+
+    for _t in tests:
+        demographics[f"progressors_{_t}"] = [pd.NA, pd.NA]
 
 
     for ds in["training", "validation", "external test"]:
@@ -205,12 +214,19 @@ def _(baseline_characteristics_df, pd):
         )
         demographics["mstype_ppms"].append(pd.NA)
 
+        for _t in tests:
+            _n = len(baseline_characteristics_df.query(f"dataset == @ds and ~{progression_col(_t)}.isna()"))
+            _n_progressors = len(baseline_characteristics_df.query(f"dataset == @ds and {progression_col(_t)} == 1"))
 
+            demographics[f"progressors_{_t}"].append(_n)
+            demographics[f"progressors_{_t}"].append(
+                f'{_n_progressors:0.0f} ({_n_progressors/ _n:0.2%})'
+                )
+        
 
     # pd.DataFrame(demographics)
     demographics
     pd.DataFrame(demographics).transpose()
-
 
     return
 
