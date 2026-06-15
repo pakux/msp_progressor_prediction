@@ -10,7 +10,7 @@ def _():
 
 
 @app.cell
-def _():
+def setup_1():
     import marimo as mo
     import pandas as pd
     from os.path import join, abspath
@@ -222,12 +222,11 @@ def _(baseline_characteristics_df, pd, progression_col, tests):
             demographics[f"progressors_{_t}"].append(
                 f'{_n_progressors:0.0f} ({_n_progressors/ _n:0.2%})'
                 )
-        
+
 
     # pd.DataFrame(demographics)
     demographics
     pd.DataFrame(demographics).transpose()
-
     return
 
 

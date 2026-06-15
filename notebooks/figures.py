@@ -76,6 +76,8 @@ def setup_1(mo):
             kind="danger"
         )
 
+
+
     # try:
     #    from architectures import sfcn_cls
     # except ModuleNotFoundError:
@@ -510,7 +512,6 @@ def _(color_female, color_male, pat_df, pd, plt, sns):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 
     # 1) Bar plot showing count of males and females across datasets
-    dataset_order = ["training", "validation", "test"]
     colors = [color_male, color_female]
 
     # Create crosstab for gender distribution by dataset
@@ -545,7 +546,7 @@ def _(color_female, color_male, pat_df, pd, plt, sns):
     print(pd.crosstab(pat_df["dataset"], pat_df["sex"]))
     print("\nOverall gender counts:")
     print(pat_df["sex"].value_counts())
-    return (dataset_order,)
+    return
 
 
 @app.cell(hide_code=True)
