@@ -4,3 +4,4 @@ pandas
 tables
 torch
 scikit-learn
+nbformat
