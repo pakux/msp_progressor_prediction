@@ -13,6 +13,7 @@ with pkgs; mkShell {
     python313Packages.pandas
     python313Packages.tables
     python313Packages.h5py
+    python313Packages.nbformat
     pkgs.fish # remove this if you still prefer bash
     # Zusätzliche Systemdependencies
     pkgs.binutils

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.8"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium", app_title="Figures and plots")
 
 
@@ -26,14 +26,14 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def setup_1(mo):
     import sys
     from glob import glob
     from math import pi
     from os import makedirs
     from os.path import abspath, basename, dirname, join
     from pathlib import Path
-
+    import nibabel as nib
     import cmcrameri
     import matplotlib.pyplot as plt
     import numpy as np
@@ -55,15 +55,18 @@ def _(mo):
     # braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
     #                                                             # will be used to load modules
     braindraindir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/"
+    braindraindir = "mnt/radbrain_dl/code/BrainTrain"
     patientstable = (
-        "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/baseline_characteristics.csv"
+        "baseline_characteristics.csv"
     )
-    patientstable = "../../../RadBrainDL_msp/baseline_characteristics.csv"
-    data_dir = "../../../RadBrainDL_msp/data/"
+    # patientstable = "../../../RadBrainDL_msp/baseline_characteristics.csv"
+    # data_dir = "../../../RadBrainDL_msp/data/"
     # data_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/"
+    data_dir = "/mnt/radbrain_dl/data/"
     models_dir = "models"
-    tensor_dir_test = "../../../RadBrainDL_msp/images/"
-    # tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
+    # tensor_dir_test = "../../../RadBrainDL_msp/images/"
+    tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
+    tensor_dir_test = "/mnt/radbrain_dl/images/"
 
     sys.path.append(braindraindir)
     try:
@@ -73,6 +76,8 @@ def _(mo):
             kind="danger"
         )
 
+
+
     # try:
     #    from architectures import sfcn_cls
     # except ModuleNotFoundError:
@@ -81,20 +86,24 @@ def _(mo):
     #    )
 
     columns = [
-        "worst_progression_pst_2z",
-        "worst_progression_mdt_2z",
-        "worst_progression_cst_2z",
-        "worst_progression_wst_2z",
+        "worst_progressor_2ycutoff_pst_2z",
+        "worst_progressor_2ycutoff_wst_2z",
+        "worst_progressor_2ycutoff_cst_2z",
+        "worst_progressor_2ycutoff_mdt_2z",
     ]
 
-    palette = sns.color_palette("tab10", 3)
+    palette = sns.color_palette("Set2", 3)
     cmap = ListedColormap(palette)
 
     sns.set_palette("tab10")
     sns.set_style("whitegrid")
-    sns.set_context("talk")
+    sns.set_context("paper")
 
     dataset_order = ["training", "validation", "test"]
+
+
+    color_female = "#008080"
+    color_male = "#FFA500"
     return (
         DataLoader,
         F,
@@ -105,6 +114,8 @@ def _(mo):
         basename,
         cmap,
         cmcrameri,
+        color_female,
+        color_male,
         columns,
         data_dir,
         dataloader,
@@ -116,8 +127,8 @@ def _(mo):
         logrank_test,
         makedirs,
         models_dir,
+        nib,
         np,
-        palette,
         patientstable,
         pd,
         plot_img,
@@ -338,12 +349,21 @@ def _(mo):
 
 
 @app.cell
+def _(patientstable, pd):
+    pat_df2 = pd.read_csv(patientstable, dtype={"site": str})
+    pat_df2
+    return
+
+
+@app.cell
 def _(columns, data_dir, dataset_order, join, patientstable, pd):
     # read patients characteristics table:
-    pat_df = pd.read_csv(patientstable, dtype={"site_x": str})
-    pat_df.site_x = pat_df.site_x.str.replace(".0", "")
+    pat_df = pd.read_csv(patientstable, dtype={"site": str})
+    pat_df.site = pat_df.site.str.replace(".0", "")
     # get list of patients in test-dataset
-    test_ids = pd.read_csv(join(data_dir, "mspaths2", "t1w", "test", f"{columns[0]}.csv")).eid.to_list()
+    test_ids = pd.read_csv(
+        join(data_dir, "mspaths2", "t1w", "test", f"{columns[0]}.csv")
+    ).eid.to_list()
 
     # get list of patients in training-dataset
     training_ids = pd.read_csv(
@@ -355,27 +375,18 @@ def _(columns, data_dir, dataset_order, join, patientstable, pd):
         join(data_dir, "mspaths", "t1w", "val", f"{columns[0]}.csv")
     ).eid.to_list()
 
-    internal_test_ids = pd.read_csv(
-        join(data_dir, "mspaths", "t1w", "test", f"{columns[0]}.csv")
-    )
 
-    pat_df.loc[pat_df.eid.isin(training_ids), "dataset"] = "training"
-    pat_df.loc[pat_df.eid.isin(validation_ids), "dataset"] = "validation"
-    pat_df.loc[pat_df.eid.isin(test_ids), "dataset"] = "test"
-    pat_df.loc[pat_df.eid.isin(internal_test_ids), "dataset"] = "internal_test"
+    pat_df.loc[pat_df.mpi.isin(training_ids), "dataset"] = "training"
+    pat_df.loc[pat_df.mpi.isin(validation_ids), "dataset"] = "validation"
+    pat_df.loc[pat_df.mpi.isin(test_ids), "dataset"] = "test"
+
 
     pat_df["dataset"] = pd.Categorical(
         pat_df["dataset"], categories=dataset_order, ordered=True
     )
 
-    len(pat_df.eid.unique())
-    return internal_test_ids, pat_df
-
-
-@app.cell
-def _(internal_test_ids):
-    internal_test_ids 
-    return
+    len(pat_df.mpi.unique())
+    return (pat_df,)
 
 
 @app.cell
@@ -387,12 +398,12 @@ def _(pat_df):
 @app.cell
 def _(pat_df, pd):
     _demographics = {}
-    for _ds in ['training', 'validation', 'test', 'internal_test']:
+    for _ds in ["training", "validation", "test"]:
         _demographics[_ds] = [len(pat_df.query(f'dataset=="{_ds}"'))]
 
     _df = pd.DataFrame(_demographics).transpose()
-    _df.columns = ['count']
-    print(_df['count'].sum())
+    _df.columns = ["count"]
+    print(_df["count"].sum())
     print(_df)
     return
 
@@ -405,9 +416,56 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
+def _(pat_df):
+    pat_df.mpi.unique()
+    return
+
+
+@app.cell
+def _(pat_df, pd):
+    _demographics = {}
+    for _ds in pat_df.dataset.unique():
+        _demographics[_ds] = [len(pat_df.query(f'dataset=="{_ds}"'))]
+
+    _df = pd.DataFrame(_demographics).transpose()
+    _df.columns = ["count"]
+
+    percentage_df = _df["count"].apply(
+        lambda x: (x / len(pat_df.mpi.unique())) * 100
+    )
+    percentage_df
+    return
+
+
+@app.cell
+def _(pat_df, pd, plt, sns):
+    # Create a barplot showing the train/test/validation split across centers
+    sns.set_palette("Accent")
+    _ax = pd.crosstab(pat_df["site"], pat_df["dataset"]).plot(
+        kind="bar", stacked=True, figsize=(10, 4), colormap='Set2', 
+    )
+
+    _ax.set_xlabel("Center ID")
+    _ax.set_ylabel("Number of Patients")
+    _ax.set_title("Distribution of Patients Across Training, Validation, and Test Sets by Center")
+    _ax.legend(title="Dataset", labels=["Training", "Validation", "Test"])
+
+    # Rotate x-axis labels for better readability
+    plt.xticks(rotation=45, ha='right')
+
+    # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+
+    # Save the plot
+    plt.savefig("center_distribution_split.svg")
+    plt.show()
+    return
+
+
+@app.cell
 def _(cmap, pat_df, pd, plt):
-    _ax = pd.crosstab(pat_df["site_x"], pat_df["dataset"]).plot(
+    _ax = pd.crosstab(pat_df["site"], pat_df["dataset"]).plot(
         kind="barh", stacked=True, cmap=cmap
     )
 
@@ -420,8 +478,8 @@ def _(cmap, pat_df, pd, plt):
 
 
 @app.cell(hide_code=True)
-def _(pat_df, pd, plt):
-    _colors = ["#EF233C", "#2B2D42"]
+def _(color_female, color_male, pat_df, pd, plt):
+    _colors = [color_female, color_male]
 
     _ax = pd.crosstab(pat_df["dataset"], pat_df["sex"]).plot(
         kind="barh", stacked=True, legend=False, color=_colors
@@ -443,8 +501,56 @@ def _(pat_df, pd, plt):
     return
 
 
+@app.cell
+def _(color_female, color_male, pat_df, pd, plt, sns):
+
+    # Set up the plotting style
+    sns.set_style("whitegrid")
+    sns.set_palette("Set2")
+
+    # Create figure with subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+
+    # 1) Bar plot showing count of males and females across datasets
+    colors = [color_male, color_female]
+
+    # Create crosstab for gender distribution by dataset
+    gender_dist = pd.crosstab(pat_df["dataset"], pat_df["sex"])
+
+    # Plot bar chart
+    gender_dist.plot(kind="bar", ax=ax1, color=colors, edgecolor='black', linewidth=0.5)
+    ax1.set_xlabel("Dataset")
+    ax1.set_ylabel("Count")
+    ax1.set_title("Gender Distribution Across Datasets")
+    ax1.legend(title="Sex", labels=["Male", "Female"])
+    ax1.tick_params(axis='x', rotation=45)
+
+    # Add value labels on bars
+    for i, (dataset, row) in enumerate(gender_dist.iterrows()):
+        for j, (gender, count) in enumerate(row.items()):
+            ax1.text(j + i*0.1 - 0.15, count + 0.5, str(count), 
+                    ha='center', va='bottom', fontsize=10)
+
+    # 2) Pie chart showing overall gender distribution
+    gender_counts = pat_df["sex"].value_counts()
+    ax2.pie(gender_counts.values, labels=gender_counts.index, autopct='%1.1f%%', 
+            colors=colors, startangle=90)
+    ax2.set_title("Overall Gender Distribution")
+
+    plt.tight_layout()
+    plt.savefig("gender_distribution.svg")
+    plt.show()
+
+    # Print summary statistics
+    print("Gender distribution by dataset:")
+    print(pd.crosstab(pat_df["dataset"], pat_df["sex"]))
+    print("\nOverall gender counts:")
+    print(pat_df["sex"].value_counts())
+    return
+
+
 @app.cell(hide_code=True)
-def _(dataset_order, ks_2samp, palette, pat_df, plt, sns):
+def _(color_female, color_male, ks_2samp, pat_df, plt, sns):
     ages_train = pat_df.loc[pat_df["dataset"] == "training", "age"]
     ages_test = pat_df.loc[pat_df["dataset"] == "test", "age"]
     ks_stat, p = ks_2samp(ages_train, ages_test)
@@ -453,15 +559,31 @@ def _(dataset_order, ks_2samp, palette, pat_df, plt, sns):
 
     plt.figure(figsize=(8, 5))
     sns.violinplot(
-        data=pat_df,
+        data=pat_df.query('sex in ["female", "male"]'),
         x="dataset",
         y="age",
-        inner="box",
-        hue="dataset",
+        inner="quart",
+        hue="sex",
         cut=0,
-        hue_order=dataset_order,
-        palette=palette,
+        hue_order=["female", "male"],
+        palette=[color_female, color_male],
+
+        split=True
     )
+    ### We dont need stripplot - have enough data
+    #sns.stripplot(
+    #    data=pat_df.query('sex in ["female", "male"]'),
+    #    x="dataset",
+    #    y="age",
+    #    hue="sex",
+    #    hue_order=["female", "male"],
+    #    # palette=[color_female, color_male],
+    #    dodge = True,
+    #    palette=[color_female, color_male],
+    #    linewidth=0.1,
+    #    alpha=0.1
+    #)
+
     plt.xlabel("Dataset")
     plt.ylabel("Age")
     plt.title("")
@@ -475,7 +597,7 @@ def _(dataset_order, ks_2samp, palette, pat_df, plt, sns):
     return
 
 
-@app.cell(disabled=True)
+@app.cell
 def _(pat_df, plt, sns):
     import scikit_posthocs as sp  # für paarweise Dunn-Tests; optional
     from scipy import stats
@@ -609,58 +731,52 @@ def _(mo):
 def _(mo):
     diagram = """
     flowchart TD
-      A["3D T1-weighted MRI] --> B[Preprocessing"]
-      B --> B1{"Steps"}
-      B1 --> B1a["N4 bias field correction"]
-      B1 --> B1b["Skull-stripping"]
-      B1 --> B1c["Affine + nonlinear registration to template"]
-      B1 --> B1d["Intensity normalization (z-score)"]
-      B1 --> B1e["Resample to fixed voxel spacing & crop/pad to ROI"]
-      B --> C["Data augmentation (train only)"]
-      C --> C1{Augmentations}
-      C1 --> C1a[Random affine/elastic]
-      C1 --> C1b[Random intensity scaling]
-      C1 --> C1c[Random flips/crops]
-      C1 --> C1d[Gaussian noise]
-
-      C --> D[Backbone: Foundation 3D Encoder]
-      D --> D1[Pretrained on large 3D brain MRI corpus]
-      D --> D2[Architecture: 3D ViT / 3D Swin Transformer or 3D CNN]
-      D --> D3[Output: Global feature vector]
-
-      D --> E["Clinical embedding (optional)"]
-      E --> E1[Age, sex, disease duration, baseline PST/Dex scores]
-      E --> F[Concatenate features]
-      F --> G[Task heads]
-      G --> G1["Progression classifier (binary): Worsened >=2 z-scores"]
-      G --> G2["Regression head: predicted ΔPST z-score"]
-      G --> G3["Regression head: predicted ΔDex z-score"]
-      G --> G4["Uncertainty head: aleatoric + epistemic"]
-
-      G1 --> H[Losses]
-      G2 --> H
-      G3 --> H
-      G4 --> H
-      H --> H1{Combined loss}
-      H1 --> H1a["Binary cross-entropy (classifier)"]
-      H1 --> H1b["MSE or Huber (regressions)"]
-      H1 --> H1c["KL / MC-dropout loss (uncertainty)""]
-      H1 --> H1d["Class-balancing / focal loss if needed"]
-
-      H --> I[Training loop]
-      I --> I1[Fine-tune foundation encoder + heads]
-      I1 --> I2[Validation: AUROC, AUPRC, sensitivity at fixed specificity]
-      I1 --> I3[Calibration: reliability plots, expected calibration error]
-
-      I --> J["Explainability & QC"]
-      J --> J1["Saliency / Grad-CAM (3D)"]
-      J --> J2["SHAP on clinical + global features"]
-      J --> J3["Overlay predicted risk on MRI slices"]
-
-      J --> K[Deployment]
-      K --> K1["Input: single 3D T1 -> Preproc -> Model"]
-      K --> K2["Output: risk probability, predicted Δz-scores, uncertainty"]
-      K --> K3["Integration: clinical dashboard / decision support"]
+        A["3D T1-weighted MRI"] --> B["Preprocessing"]
+        B --> B1["Steps"]
+        B1 --> B1a["N4 bias field correction"]
+        B1 --> B1b["Skull-stripping"]
+        B1 --> B1c["Affine + nonlinear registration to template"]
+        B1 --> B1d["Intensity normalization (z-score)"]
+        B1 --> B1e["Resample to fixed voxel spacing & crop/pad to ROI"]
+        B --> C["Data augmentation (train only)"]
+        C --> C1["Augmentations"]
+        C1 --> C1a["Random affine/elastic"]
+        C1 --> C1b["Random intensity scaling"]
+        C1 --> C1c["Random flips/crops"]
+        C1 --> C1d["Gaussian noise"]
+        C --> D["Backbone: Foundation 3D Encoder"]
+        D --> D1["Pretrained on large 3D brain MRI corpus"]
+        D --> D2["Architecture: 3D ViT / 3D Swin Transformer or 3D CNN"]
+        D --> D3["Output: Global feature vector"]
+        D --> E["Clinical embedding (optional)"]
+        E --> E1["Age, sex, disease duration, baseline PST/Dex scores"]
+        E --> F["Concatenate features"]
+        F --> G["Task heads"]
+        G --> G1["Progression classifier (binary): Worsened >= 2 z-scores"]
+        G --> G2["Regression head: predicted ΔPST z-score"]
+        G --> G3["Regression head: predicted ΔDex z-score"]
+        G --> G4["Uncertainty head: aleatoric + epistemic"]
+        G1 --> H["Losses"]
+        G2 --> H
+        G3 --> H
+        G4 --> H
+        H --> H1["Combined loss"]
+        H1 --> H1a["Binary cross-entropy (classifier)"]
+        H1 --> H1b["MSE or Huber (regressions)"]
+        H1 --> H1c["KL / MC-dropout loss (uncertainty)"]
+        H1 --> H1d["Class-balancing / focal loss if needed"]
+        H --> I["Training loop"]
+        I --> I1["Fine-tune foundation encoder + heads"]
+        I1 --> I2["Validation: AUROC, AUPRC, sensitivity at fixed specificity"]
+        I1 --> I3["Calibration: reliability plots, expected calibration error"]
+        I --> J["Explainability & QC"]
+        J --> J1["Saliency / Grad-CAM (3D)"]
+        J --> J2["SHAP on clinical + global features"]
+        J --> J3["Overlay predicted risk on MRI slices"]
+        J --> K["Deployment"]
+        K --> K1["Input: single 3D T1 - Preproc - Model"]
+        K --> K2["Output: risk probability, predicted Δz-scores, uncertainty"]
+        K --> K3["Integration: clinical dashboard / decision support"]
     """
 
     mo.mermaid(diagram=diagram)
@@ -1083,6 +1199,16 @@ def _(
 
 
 @app.cell
+def _(columns, data_dir, join, pd):
+
+    for _column in columns:
+        _data_df = pd.read_csv(join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv"))
+
+        print(_data_df)
+    return
+
+
+@app.cell
 def _(df_t1w):
     df_t1w
     return
@@ -1094,7 +1220,7 @@ def _(df_t1w, kmplots):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     ## Kaplan Meier Curves for FLAIR
@@ -1105,18 +1231,6 @@ def _(mo):
 @app.cell
 def _(df_flair, kmplots):
     kmplots(df_flair, "FLAIR")
-    return
-
-
-@app.cell
-def _(df_t1w):
-    df_t1w
-    return
-
-
-@app.cell
-def _(df_t1w):
-    df_t1w
     return
 
 
@@ -1217,14 +1331,50 @@ def _(top_100_results):
 
 
 @app.cell
-def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
+def _():
+    max(4, 3)
+    return
+
+
+@app.cell
+def _(
+    basename,
+    cmcrameri,
+    glob,
+    join,
+    modalities,
+    nib,
+    plot_img,
+    plt,
+    test_names,
+):
     import re
 
+
+    selected_slices = [31, 38, 50]
     pattern = re.compile(r"sub-(?P<sub>[^_]+)_mod-.*_desc-.*_heatmap\.nii\.gz")
     # m = pattern.search("sub-ABC123_mod-{modality}_desc-{test}_heatmap.nii.gz")
 
     _modality = "FLAIR"
     _test = "PST"
+
+
+    # find highest attention
+    max_attention = 0
+    for _modality in modalities:
+        for _test in test_names:
+            heatmap = basename(
+                glob(
+                    f"flair-true-pos_same-t1w/sub-*_mod-{_modality}_desc-{_test.upper()}_heatmap.nii.gz"
+                )[0]
+            )
+            for z in selected_slices:
+                max_attention = max(
+                    max_attention,
+                    nib.load(join("flair-true-pos_same-t1w", heatmap))
+                    .get_fdata()[:, :, z]
+                    .max(),
+                )
 
     for _modality in modalities:
         for _test in test_names:
@@ -1246,7 +1396,7 @@ def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
             plot_img(
                 img=join("flair-true-pos_same-t1w", heatmap),
                 bg_img=join("flair-true-pos_same-t1w", map),
-                cut_coords=[31, 38, 44, 50, 60],
+                cut_coords=selected_slices,
                 display_mode="z",
                 radiological=True,
                 cmap=cmcrameri.cm.roma_r,
@@ -1257,13 +1407,18 @@ def _(basename, cmcrameri, glob, join, modalities, plot_img, plt, test_names):
                 black_bg=True,
                 title=f"{_modality} {_test.upper()}",
                 vmin=0,
-                vmax=1,
+                vmax=max_attention,
                 annotate=False,
             )
             plt.savefig(
                 join("flair-true-pos_same-t1w", f"{_modality}_{_test}.svg")
             )
             plt.show()
+    return
+
+
+@app.cell
+def _():
     return
 
 
@@ -1298,6 +1453,8 @@ def _(pd, plt, sns, spidy):
     )
 
     _ax.set_title("Regional Attention - FLAIR")
+    _ax.set_rlim([0, 0.055])
+
     plt.legend(bbox_to_anchor=(1.7, 1.2))
     plt.savefig("regional_major_attention_flair.svg")
     plt.savefig("regional_major_attention_flair.png")
@@ -1311,11 +1468,11 @@ def _(pd, plt, sns, spidy):
         sharey=True,
         sharex=True,
         height=4,
-        aspect=1.5
+        aspect=1.5,
     )
     grid.map_dataframe(sns.barplot, "value", "region")
     grid.fig.tight_layout(w_pad=1)
-    grid.set_titles(col_template="{col_name}")  
+    grid.set_titles(col_template="{col_name}")
     plt.show()
     ##### T1w
 
@@ -1337,6 +1494,9 @@ def _(pd, plt, sns, spidy):
         # palette=cmap,
     )
     _ax.set_title("Regional Attention - T1w")
+    _ax.set_rlim([0, 0.055])
+
+
     plt.legend(bbox_to_anchor=(1.7, 1.2))
     plt.savefig("regional_major_attention_t1w.svg")
     plt.savefig("regional_major_attention_t1w.png")
@@ -1350,7 +1510,7 @@ def _(pd, plt, sns, spidy):
         sharey=True,
         sharex=True,
         height=4,
-        aspect=1.5
+        aspect=1.5,
     )
     grid.map_dataframe(sns.barplot, "value", "region")
     grid.fig.tight_layout(w_pad=1)
