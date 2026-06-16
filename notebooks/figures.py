@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.23.3"
 app = marimo.App(width="medium", app_title="Figures and plots")
 
 
@@ -54,23 +54,26 @@ def setup_1(mo):
     # Define Paths and Filenames for further work / from previous work with BrainTrain
     # braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
     #                                                             # will be used to load modules
-    braindraindir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/"
-    braindraindir = "mnt/radbrain_dl/code/BrainTrain"
+    braindraindir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain_Katherlab/"
+    # braindraindir = "mnt/radbrain_dl/code/BrainTrain"
     patientstable = (
         "baseline_characteristics.csv"
     )
     # patientstable = "../../../RadBrainDL_msp/baseline_characteristics.csv"
     # data_dir = "../../../RadBrainDL_msp/data/"
-    # data_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/"
-    data_dir = "/mnt/radbrain_dl/data/"
+    data_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data/"
+    # data_dir = "/mnt/radbrain_dl/data/"
     models_dir = "models"
+    models_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/models"
+
     # tensor_dir_test = "../../../RadBrainDL_msp/images/"
     tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
-    tensor_dir_test = "/mnt/radbrain_dl/images/"
+    # tensor_dir_test = "/mnt/radbrain_dl/images/"
 
     sys.path.append(braindraindir)
     try:
-        from dataloaders import dataloader
+        from utils.dataloaders import dataloader
+        from utils.architectures import sfcn_cls 
     except ModuleNotFoundError:
         mo.md("Could not load Braintrain! This might break things").callout(
             kind="danger"
@@ -135,11 +138,17 @@ def setup_1(mo):
         plt,
         precision_recall_curve,
         roc_curve,
+        sfcn_cls,
         sns,
         spidy,
         tensor_dir_test,
         torch,
     )
+
+
+@app.cell
+def _():
+    return
 
 
 @app.cell(hide_code=True)
@@ -276,13 +285,13 @@ def _(
         return ax
 
 
-    def run_test(column_name, data_dir, test_dataset, modality):
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    def run_test(column_name, data_dir, test_dataset, modality, modelname='sfcn'):
+        device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
         test_dataset = dataloader.BrainDataset(
             csv_file=abspath(
                 join(data_dir, test_dataset, "test", f"{column_name}.csv")
             ),
-            root_dir=abspath(join(tensor_dir_test, "mspaths2", modality)),
+            root_dir=abspath(join(tensor_dir_test, "mspaths2", f"{modality}96_affine")),
             column_name=column_name,
             num_rows=None,
             num_classes=2,
@@ -296,7 +305,7 @@ def _(
         # Load the model and accordingly the saved state
         model = sfcn_cls.SFCN(output_dim=2).to(device)
         checkpoint = torch.load(
-            join(models_dir, modality, f"{column_name}_e1000_b32_im96.pth"),
+            join(models_dir, modelname, modality, f"{column_name}_e1000_b16_im96.pth"),
             map_location=device,
             weights_only=False,
         )
@@ -893,6 +902,11 @@ def _(Path, columns, data_dir, pd, run_test):
     return (df_flair,)
 
 
+@app.cell
+def _():
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -1167,7 +1181,7 @@ def _(
             _data_df = pd.read_csv(
                 join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv")
             )
-            _data_df = _data_df.query(f"not(time <= 0)")
+            _data_df = _data_df.query(f"not(time_{_column} <= 0)")
 
             shortname = next(
                 (v for k, v in col_mapping.items() if k in _column), None
@@ -1179,7 +1193,7 @@ def _(
             thresholds_dict = find_optimal_thresholds(
                 km_data["y_test"].values, km_data["y_score"].values
             )
-            time_to_event = km_data["time"].values
+            time_to_event = km_data[f"time_{_column}"].values
             event_observed = km_data["y_test"].values
             prediction_scores = km_data["y_score"].values
             km_threshold = thresholds_dict["youden_threshold"]
