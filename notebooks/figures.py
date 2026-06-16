@@ -54,8 +54,8 @@ def setup_1(mo):
     # Define Paths and Filenames for further work / from previous work with BrainTrain
     # braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
     #                                                             # will be used to load modules
-    braindraindir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain/"
-    braindraindir = "mnt/radbrain_dl/code/BrainTrain"
+    # braindraindir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/code/BrainTrain_Katherlab/utils"
+    braindraindir = "/mnt/radbrain_dl/code/BrainTrain_Katherlab/"
     patientstable = (
         "baseline_characteristics.csv"
     )
@@ -70,7 +70,8 @@ def setup_1(mo):
 
     sys.path.append(braindraindir)
     try:
-        from dataloaders import dataloader
+        from utils.dataloaders import dataloader
+        from utils.architectures import sfcn_cls
     except ModuleNotFoundError:
         mo.md("Could not load Braintrain! This might break things").callout(
             kind="danger"
@@ -135,6 +136,7 @@ def setup_1(mo):
         plt,
         precision_recall_curve,
         roc_curve,
+        sfcn_cls,
         sns,
         spidy,
         tensor_dir_test,
@@ -503,7 +505,6 @@ def _(color_female, color_male, pat_df, pd, plt):
 
 @app.cell
 def _(color_female, color_male, pat_df, pd, plt, sns):
-
     # Set up the plotting style
     sns.set_style("whitegrid")
     sns.set_palette("Set2")
@@ -539,13 +540,30 @@ def _(color_female, color_male, pat_df, pd, plt, sns):
 
     plt.tight_layout()
     plt.savefig("gender_distribution.svg")
-    plt.show()
 
-    # Print summary statistics
-    print("Gender distribution by dataset:")
-    print(pd.crosstab(pat_df["dataset"], pat_df["sex"]))
-    print("\nOverall gender counts:")
-    print(pat_df["sex"].value_counts())
+    # 3) Create additional pie charts for each dataset
+    datasets = pat_df["dataset"].unique()
+    n_datasets = len(datasets)
+
+    # Create a figure with subplots for each dataset
+    fig_pies, axes = plt.subplots(1, n_datasets, figsize=(6 * n_datasets, 6))
+
+    if n_datasets == 1:
+        axes = [axes]
+
+    for idx, dataset in enumerate(datasets):
+        ax = axes[idx]
+        dataset_data = pat_df[pat_df["dataset"] == dataset]
+        gender_counts = dataset_data["sex"].value_counts()
+    
+        # Plot pie chart for this dataset
+        ax.pie(gender_counts.values, labels=gender_counts.index, autopct='%1.1f%%',
+                colors=colors, startangle=90)
+        ax.set_title(f"Gender Distribution - {str(dataset).capitalize()}")
+
+    plt.tight_layout()
+    plt.savefig("gender_distribution_by_dataset.svg")
+    plt.gca()
     return
 
 

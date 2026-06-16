@@ -5,12 +5,7 @@ app = marimo.App(width="full")
 
 
 @app.cell
-def _():
-    return
-
-
-@app.cell
-def setup_1():
+def read_data():
     import marimo as mo
     import pandas as pd
     from os.path import join, abspath
