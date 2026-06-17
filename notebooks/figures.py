@@ -100,7 +100,7 @@ def setup_1(mo):
 
     sns.set_palette("tab10")
     sns.set_style("whitegrid")
-    sns.set_context("paper")
+    sns.set_context("notebook")
 
     dataset_order = ["training", "validation", "test"]
 
@@ -1181,19 +1181,20 @@ def _(
             _data_df = pd.read_csv(
                 join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv")
             )
-            _data_df = _data_df.query(f"not(time_{_column} <= 0)")
+            _test_name = _column.replace("worst_progressor_2ycutoff_","").replace("_2z", "")
+            _data_df = _data_df.query(f"not(time_{_test_name} <= 0)")
 
             shortname = next(
                 (v for k, v in col_mapping.items() if k in _column), None
             )
             km_data = _data_df.merge(df.query(f'name == "{shortname}"'))
             # km_data.time.fillna(0, inplace=True)
-            km_data.dropna(subset="time", inplace=True)
+            km_data.dropna(subset=f"time_{_test_name}", inplace=True)
             km_data.to_csv(join("data", f"kmdata_{_column}.csv"), index=False)
             thresholds_dict = find_optimal_thresholds(
                 km_data["y_test"].values, km_data["y_score"].values
             )
-            time_to_event = km_data[f"time_{_column}"].values
+            time_to_event = km_data[f"time_{_test_name}"].values
             event_observed = km_data["y_test"].values
             prediction_scores = km_data["y_score"].values
             km_threshold = thresholds_dict["youden_threshold"]
@@ -1421,7 +1422,7 @@ def _(
                 black_bg=True,
                 title=f"{_modality} {_test.upper()}",
                 vmin=0,
-                vmax=max_attention,
+                vmax=0.4,
                 annotate=False,
             )
             plt.savefig(
