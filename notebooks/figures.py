@@ -27,6 +27,7 @@ def _(mo):
 
 @app.cell
 def setup_1(mo):
+    import re
     import sys
     from glob import glob
     from math import pi
@@ -46,10 +47,15 @@ def setup_1(mo):
     from lifelines.plotting import add_at_risk_counts
     from lifelines.statistics import logrank_test
     from matplotlib.colors import ListedColormap
+    from matplotlib.gridspec import GridSpec
     from nilearn.plotting import plot_anat, plot_img
     from scipy.stats import ks_2samp
     from sklearn.metrics import auc, precision_recall_curve, roc_curve
     from torch.utils.data import DataLoader
+
+    import matplotlib.cm as cm
+    import matplotlib.colors as mcolors
+
 
     # Define Paths and Filenames for further work / from previous work with BrainTrain
     # braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
@@ -115,6 +121,7 @@ def setup_1(mo):
         abspath,
         auc,
         basename,
+        cm,
         cmap,
         cmcrameri,
         color_female,
@@ -129,6 +136,7 @@ def setup_1(mo):
         ks_2samp,
         logrank_test,
         makedirs,
+        mcolors,
         models_dir,
         nib,
         np,
@@ -137,6 +145,7 @@ def setup_1(mo):
         plot_img,
         plt,
         precision_recall_curve,
+        re,
         roc_curve,
         sfcn_cls,
         sns,
@@ -1269,7 +1278,7 @@ def _(mo):
 def _(pd):
     attention_maps_df = pd.DataFrame()
 
-    test_names = ["cst", "wst", "mdt", "pst"]
+    test_names = ["pst", "mdt", "cst", "wst"] 
     modalities = ["T1w", "FLAIR"]
     for test_name in test_names:
         for modality in modalities:
@@ -1345,25 +1354,30 @@ def _(top_100_results):
     return
 
 
-@app.cell
-def _():
-    max(4, 3)
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Sailiency maps
+    """)
     return
 
 
 @app.cell
 def _(
     basename,
+    cm,
     cmcrameri,
     glob,
     join,
+    mcolors,
     modalities,
     nib,
+    np,
     plot_img,
     plt,
+    re,
     test_names,
 ):
-    import re
 
 
     selected_slices = [31, 38, 50]
@@ -1373,6 +1387,9 @@ def _(
     _modality = "FLAIR"
     _test = "PST"
 
+
+    _vmin = 0
+    _vmax = 0.4
 
     # find highest attention
     max_attention = 0
@@ -1391,8 +1408,64 @@ def _(
                     .max(),
                 )
 
+    plt.rcParams.update({
+        # Figure / saved‑file background
+        "figure.facecolor": "black",
+        "savefig.facecolor": "black",
+
+        # Axes background (the part inside each subplot)
+        "axes.facecolor": "black",
+
+        # Axes edge / spines – we want them black as well
+        "axes.edgecolor": "black",          # keep the spines visible (optional)
+        "axes.labelcolor": "black",
+        "xtick.color": "black",
+        "ytick.color": "black",
+
+        # Grid lines (if you ever turn a grid on)
+        "grid.color": "black",
+        "grid.linestyle": "-",
+        "grid.linewidth": 0.5,
+    })
+
+
+
+    _figure_cols = modalities
+    _figure_rows = test_names 
+    _figure = plt.figure(figsize=(20, 24))
+    _figure.patch.set_facecolor('black')
+
+    _width_ratios = [1, 5,5]
+    _height_ratios = [1, 3,3,3,3, 0.2]
+    print(len(_figure_cols) + 1)
+    _gs = plt.GridSpec(
+        figure=_figure,
+        ncols=len(_figure_cols) + 1,
+        nrows=len(_figure_rows) + 2,
+        width_ratios=_width_ratios, 
+        height_ratios=_height_ratios,
+        wspace=0.15,  # Width space between plots (decrease this to reduce space)
+        hspace=-0.4   # Height space between plots
+    )
+    _ax = _figure.subplots() # This creates a 2D array of axes matching the GridSpec
+    _ax = np.array([[_figure.add_subplot(_gs[i, j]) for j in range(_gs.ncols)] for i in range(_gs.nrows)])
+    _figure.patch.set_facecolor('black')
+
+    # Set all axes to have black background
+    for _i in range(_ax.shape[0]):
+        for _j in range(_ax.shape[1]):
+            _ax[_i, _j].set_facecolor('black')
+            # Optional: Make axis spines invisible for cleaner look
+            for spine in _ax[_i, _j].spines.values():
+                spine.set_visible(False)
+            _ax[_i, _j].tick_params(axis='both', which='both', length=0)  # Remove ticks
+
+    _figure.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+
     for _modality in modalities:
         for _test in test_names:
+
+
             print(f"{_modality} for test {_test}")
             heatmap = basename(
                 glob(
@@ -1408,39 +1481,86 @@ def _(
                 ]
             )
 
-            plot_img(
+            _f = plot_img(
                 img=join("flair-true-pos_same-t1w", heatmap),
                 bg_img=join("flair-true-pos_same-t1w", map),
                 cut_coords=selected_slices,
                 display_mode="z",
                 radiological=True,
                 cmap=cmcrameri.cm.roma_r,
+                colorbar=False,
                 transparency=join("flair-true-pos_same-t1w", heatmap),
                 resampling_interpolation="continuous",
                 transparency_range=[0, 0.1],
                 cbar_tick_format="%.2f",
                 black_bg=True,
-                title=f"{_modality} {_test.upper()}",
-                vmin=0,
-                vmax=0.4,
+                title=None,
+                vmin=_vmin,
+                vmax=_vmax,
                 annotate=False,
+                axes =  _ax[test_names.index(_test) + 1, modalities.index(_modality) + 1]
             )
-            plt.savefig(
-                join("flair-true-pos_same-t1w", f"{_modality}_{_test}.svg")
-            )
-            plt.show()
-    return
 
 
-@app.cell
-def _():
+            #plt.savefig(
+            #    join("flair-true-pos_same-t1w", f"{_modality}_{_test}.svg")
+            #)
+
+    _ax[0, 0].axis("off")                     # empty corner cell
+
+    for _col, _mod in enumerate(modalities, start=1):
+        _ax[0, _col].axis("off")
+        _ax[0, _col].text(
+            0.5, 0.5, _mod,
+            ha="center", va="center",
+            color="white", fontsize=40,
+        )
+
+    for _row, _name in enumerate(test_names, start=1):
+        _ax[_row, 0].axis("off")
+        _ax[_row, 0].text(
+            0.5, 0.5, _name.upper(),
+            ha="right", va="center",
+            color="white", fontsize=40,
+            rotation=90,
+        )
+
+
+    # ------------------------------------------------------------------
+    #  Create & style the single colorbar
+    # ------------------------------------------------------------------
+    cax = _figure.add_subplot(_gs[-1, 1:3])
+    cax.set_facecolor("black")
+    cax.tick_params(colors="white", labelsize=14)
+    # cax = _ax[-1, 1:]
+
+    # Create a ScalarMappable that matches nilearn's display
+    norm = mcolors.Normalize(vmin=_vmin, vmax=_vmax)
+    sm = cm.ScalarMappable(cmap=cmcrameri.cm.roma_r, norm=norm, )
+    sm.set_array([])
+
+    _figure.colorbar(
+        sm, 
+        cax=cax, 
+        orientation="horizontal", 
+        label="Intensity", 
+        # shrink=0.8,
+        format="%.2f",
+        fraction = 0.15,
+        pad = 0.3,
+        aspect=30
+    
+    )
+
+
+    plt.show()
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Mean attention over top 20 results for each test.
+    ## Mean attention over top 20 results for each test.
     """)
     return
 
@@ -1448,6 +1568,30 @@ def _(mo):
 @app.cell
 def _(pd, plt, sns, spidy):
     ##### FLAIR
+
+    sns.set_style('whitegrid')
+    sns.set_theme(style='whitegrid', rc=None)
+
+    plt.rcParams.update({
+        # Figure / saved‑file background
+        "figure.facecolor": "white",
+        "savefig.facecolor": "white",
+
+        # Axes background (the part inside each subplot)
+        "axes.facecolor": "white",
+
+        # Axes edge / spines – we want them black as well
+        "axes.edgecolor": "0.7",          # keep the spines visible (optional)
+        "axes.labelcolor": "0.5",
+        "xtick.color": "0.5",
+        "ytick.color": "0.5",
+
+        # Grid lines (if you ever turn a grid on)
+        "grid.color": "black",
+        "grid.linestyle": "-",
+        "grid.linewidth": 0.5,
+    })
+
 
     region_df = pd.read_csv("im96_flair.csv")
     region_df["test"] = region_df.test.str.upper()
