@@ -1,7 +1,12 @@
 import marimo
 
+<<<<<<< HEAD
+__generated_with = "0.23.3"
+app = marimo.App(width="medium")
+=======
 __generated_with = "0.23.9"
 app = marimo.App(width="full")
+>>>>>>> 50573b9f35480fc8a0eeedaa7a3a04393d4d1001
 
 
 @app.cell
@@ -42,6 +47,11 @@ def read_data():
     )
 
 
+<<<<<<< HEAD
+    baseline_characteristics_df = pd.read_csv('baseline_characteristics.csv')
+    len(baseline_characteristics_df.query('sex == "female"'))
+    return baseline_characteristics_df, pd
+=======
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -271,6 +281,7 @@ def _(mo):
     # Median time between MRI and baseline functional assessment
     """)
     return
+>>>>>>> 50573b9f35480fc8a0eeedaa7a3a04393d4d1001
 
 
 @app.cell
@@ -279,10 +290,16 @@ def _(baseline_characteristics_df, pd):
     return
 
 
+<<<<<<< HEAD
+    demographics['pdds'] = [len(baseline_characteristics_df.query('pdds_scr.notnull()')), 
+
+                            baseline_characteristics_df.pdds_scr.mean(), baseline_characteristics_df.pdds_scr.std()]
+=======
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     ### Demographics
+>>>>>>> 50573b9f35480fc8a0eeedaa7a3a04393d4d1001
 
     | Category | Count | Percentage |
     | --- | --- | --- |
