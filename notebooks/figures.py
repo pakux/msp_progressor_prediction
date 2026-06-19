@@ -48,7 +48,8 @@ def setup_1(mo):
     from lifelines.statistics import logrank_test
     from matplotlib.colors import ListedColormap
     from matplotlib.gridspec import GridSpec
-    from nilearn.plotting import plot_anat, plot_img
+    from nilearn.plotting import plot_anat, plot_img, plot_roi, plot_stat_map
+    from nilearn import image
     from scipy.stats import ks_2samp
     from sklearn.metrics import auc, precision_recall_curve, roc_curve
     from torch.utils.data import DataLoader
@@ -142,7 +143,7 @@ def setup_1(mo):
         np,
         patientstable,
         pd,
-        plot_img,
+        plot_stat_map,
         plt,
         precision_recall_curve,
         re,
@@ -1373,7 +1374,7 @@ def _(
     modalities,
     nib,
     np,
-    plot_img,
+    plot_stat_map,
     plt,
     re,
     test_names,
@@ -1481,8 +1482,8 @@ def _(
                 ]
             )
 
-            _f = plot_img(
-                img=join("flair-true-pos_same-t1w", heatmap),
+            _f = plot_stat_map(
+                stat_map_img=join("flair-true-pos_same-t1w", heatmap),
                 bg_img=join("flair-true-pos_same-t1w", map),
                 cut_coords=selected_slices,
                 display_mode="z",
@@ -1498,8 +1499,28 @@ def _(
                 vmin=_vmin,
                 vmax=_vmax,
                 annotate=False,
-                axes =  _ax[test_names.index(_test) + 1, modalities.index(_modality) + 1]
+                dim=1.5,
+                axes =  _ax[test_names.index(_test) + 1, modalities.index(_modality) + 1],
             )
+
+            # _f = plot_anat(
+            #     join("flair-true-pos_same-t1w", map),
+            #     cut_coords=selected_slices,
+            #     cmap="gray",
+            #     axes= _ax[test_names.index(_test) + 1, modalities.index(_modality) + 1],
+            #     display_mode="z",
+
+
+            # )
+
+            # _f = plot_roi(
+            #     join("flair-true-pos_same-t1w", heatmap),  # or plot_stat_map for stats
+            #     # bg_img=_f,  # use the existing display
+            #     cmap=cmcrameri.cm.roma_r,
+            #     alpha=0.7,       # controls overlay dominance (try 0.4–1.0)
+            #     display_mode="z",
+            #     cut_coords=selected_slices,
+            # )
 
 
             #plt.savefig(
@@ -1549,10 +1570,9 @@ def _(
         fraction = 0.15,
         pad = 0.3,
         aspect=30
-    
     )
 
-
+    plt.savefig('heatmaps_sliced_t1w_flair.svg')
     plt.show()
     return
 
