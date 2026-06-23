@@ -5,6 +5,7 @@ app = marimo.App(width="full")
 
 
 @app.cell
+<<<<<<< HEAD
 def _():
     return
 
@@ -12,6 +13,9 @@ def _():
 @app.cell
 def setup_1():
     import numpy as np
+=======
+def read_data():
+>>>>>>> 6862864bf16eddba65e9db7336471394fbe42978
     import marimo as mo
     import pandas as pd
     from os.path import join, abspath, isfile
