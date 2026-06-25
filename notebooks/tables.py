@@ -1,11 +1,10 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.10"
 app = marimo.App(width="full")
 
 
 @app.cell
-<<<<<<< HEAD
 def _():
     return
 
@@ -13,13 +12,10 @@ def _():
 @app.cell
 def setup_1():
     import numpy as np
-=======
-def read_data():
->>>>>>> 6862864bf16eddba65e9db7336471394fbe42978
     import marimo as mo
     import pandas as pd
     from os.path import join, abspath, isfile
-    from scipy.stats import chi2_contingency, mannwhitneyu, fisher_exact
+    from scipy.stats import chi2_contingency, mannwhitneyu, fisher_exact, ttest_ind
 
     tests = ['pst', 'mdt', 'wst', 'cst']
     models = ['sfcn', 'ssl-finetuned', 'lora', 'dense', 'swin']
@@ -48,6 +44,7 @@ def read_data():
 
     def progression_col(testname):
         return f"worst_progressor_2ycutoff_{testname}_2z"
+
     return (
         baseline_characteristics_df,
         batchsize,
@@ -170,7 +167,7 @@ def characteristics(
 
         # calculade p-value for test against training
         if ds in ["validation", "external test"]:
-        
+
             _sex_training = np.array([
                 [
                     len(baseline_characteristics_df.query('sex == "female" and dataset=="training"')), 
@@ -184,7 +181,7 @@ def characteristics(
             _odds_ratio, _p_value = fisher_exact(_sex_training)
             demographics["sex"].append(f"{_p_value:0.3f}") 
 
-    
+
         demographics["age"].append( len(
                 baseline_characteristics_df.query(
                     "dataset == @ds and age.notnull()"
@@ -205,7 +202,7 @@ def characteristics(
             demographics["age"].append(f"{_p:0.3f}")
 
 
-    
+
         demographics["mstype"].append(
             len(
                 baseline_characteristics_df.query(
@@ -213,7 +210,7 @@ def characteristics(
                 )
             )
         )
-    
+
         demographics["mstype"].append(pd.NA)
         if ds in ["validation", "external test"]:
             # TODO: add here mann-whitney-u
@@ -235,7 +232,7 @@ def characteristics(
                 baseline_characteristics_df.query('dataset==@ds')['pdds_scr'].dropna().to_list()
             )
             print(_p)
-        
+
             demographics["pdds"].append(f"{_p:0.3f}")
 
 
@@ -266,7 +263,7 @@ def characteristics(
         demographics["mstype_prms"].append(
             len(
                 baseline_characteristics_df.query(
-                    'dataset== @ds and mstype == "Progressive Relapsing MS"'
+                    'dataset== @ds and mstype == "Progressmannwhitneyuive Relapsing MS"'
                 )
             )
         )
@@ -287,9 +284,9 @@ def characteristics(
             demographics["mstype_prms"].append(f"{_p_value:0.3f}") 
 
 
-        
+
             # demographics["mstype_"].append(pd.NA)
-    
+
         demographics["mstype_rrms"].append(
             len(
                 baseline_characteristics_df.query(
@@ -358,13 +355,13 @@ def characteristics(
             _odds_ratio, _p_value = fisher_exact(_ppms_training)
             demographics["mstype_ppms"].append(f"{_p_value:0.3f}") 
 
-    
+
         for _t in tests:
             _n = len(baseline_characteristics_df.query(f"dataset == @ds and ~{progression_col(_t)}.isna()"))
             _n_training = len(baseline_characteristics_df.query(f'dataset == "training" and ~{progression_col(_t)}.isna()'))
-        
+
             _n_progressors = len(baseline_characteristics_df.query(f"dataset == @ds and {progression_col(_t)} == 1"))
-        
+
             demographics[f"progressors_{_t}"].append(_n)
             demographics[f"progressors_{_t}"].append(
                 f'{_n_progressors:0.0f} ({_n_progressors/ _n:0.2%})'
@@ -388,17 +385,11 @@ def characteristics(
     # pd.DataFrame(demographics)
     demographics
     pd.DataFrame(demographics).transpose()
-    return (demographics,)
-
-
-@app.cell
-def _(demographics):
-    demographics
     return
 
 
 @app.cell
-def _(baseline_characteristics_df, demographics, fisher_exact, np):
+def _(baseline_characteristics_df, fisher_exact, np):
     _sex_training = np.array([
         [
             len(baseline_characteristics_df.query('sex == "female" and dataset=="training"')), 
@@ -412,7 +403,6 @@ def _(baseline_characteristics_df, demographics, fisher_exact, np):
 
     _odds_ratio, _p_value = fisher_exact(_sex_training)
 
-    demographics["validation p"] = []
 
 
     _sex_training = np.array([
@@ -433,18 +423,6 @@ def _(baseline_characteristics_df, demographics, fisher_exact, np):
 
     _p_value
      # sex_training
-    return
-
-
-@app.cell
-def _(demographics):
-    demographics
-    return
-
-
-@app.cell
-def _(demographics, pd):
-    pd.DataFrame(demographics)
     return
 
 
@@ -593,7 +571,7 @@ app._unparsable_cell(
         # Create contingency table: [female1, male1] vs [female2, male2]
         female1 = len(baseline_characteristics_df.query(f'dataset == \"{ds1}\" and sex == \"female\"'))
         male1 = len(baseline_characteristics_df.query(f'dataset == \"{ds1}\" and sex == \"male\"'))
-            
+
     return pd.NA
 
     # Helper function for safe chi-squared test
@@ -796,8 +774,8 @@ def _(batchsize, eval_dir, imagesize, isfile, join, models, pd, tests):
                 _ftable = join(eval_dir, 'summary', _model, 'test', 'mspaths2', _modality, f'worst_progressor_2ycutoff_{_neurotest}_2z_e1000_b{batchsize}_im{imagesize}.csv')
                 if isfile(_ftable):
                     _df = pd.read_csv(_ftable)
-                    _performance['AUROC'].append(f'{_df["AUROC"][0]:0.2f} ({_df["AUROC_CI_lower"][0]:0.2f} | {_df["AUROC_CI_upper"][0]:0.2f}) ')
-                    _performance['AUPRC'].append(f'{_df["AUPRC"][0]:0.2f} ({_df["AUPRC_CI_lower"][0]:0.2f} | {_df["AUPRC_CI_upper"][0]:0.2f}) ')
+                    _performance['AUROC'].append(f'{_df["AUROC"][0]:0.2f} [{_df["AUROC_CI_lower"][0]:0.2f} - {_df["AUROC_CI_upper"][0]:0.2f}]')
+                    _performance['AUPRC'].append(f'{_df["AUPRC"][0]:0.2f} [{_df["AUPRC_CI_lower"][0]:0.2f} - {_df["AUPRC_CI_upper"][0]:0.2f}]')
                 else:
                    _performance['AUROC'].append(pd.NA)
                    _performance['AUPRC'].append(pd.NA)
@@ -806,8 +784,8 @@ def _(batchsize, eval_dir, imagesize, isfile, join, models, pd, tests):
 
                 if isfile(_ftable):    
                     _df = pd.read_csv(_ftable)
-                    _performance['Accuracy'].append(_df.accuracy[0])
-                    _performance['F1-Score'].append(_df.f1[0])
+                    _performance['Accuracy'].append(f"{_df.accuracy[0]:0.2f}")
+                    _performance['F1-Score'].append(f"{_df.f1[0]:0.2f}")
                 else:
                     _performance['Accuracy'].append(pd.NA)
                     _performance['F1-Score'].append(pd.NA)
