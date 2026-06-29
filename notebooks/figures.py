@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.3"
+__generated_with = "0.23.10"
 app = marimo.App(width="medium", app_title="Figures and plots")
 
 
@@ -71,7 +71,7 @@ def setup_1(mo):
     # data_dir = "/mnt/radbrain_dl/data/"
     models_dir = "models"
     models_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/models"
-
+    scores_dir =  "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/scores/"
     # tensor_dir_test = "../../../RadBrainDL_msp/images/"
     tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
     # tensor_dir_test = "/mnt/radbrain_dl/images/"
@@ -512,7 +512,7 @@ def _(color_female, color_male, pat_df, pd, plt):
 @app.cell
 def _(color_female, color_male, pat_df, pd, plt, sns):
     # Set up the plotting style
-    sns.set_style("whitegrid")
+    sns.set_style("whitegrid", )
     sns.set_palette("Set2")
 
     # Create figure with subplots
@@ -1374,6 +1374,37 @@ def _(mo):
     return
 
 
+app._unparsable_cell(
+    r"""
+    import models
+    import heatmap
+
+    model = "sfcn"
+
+
+    best_ids = {}
+
+    for _col in columns:
+        _df = pd.read_csv(join(scores_dir, model, 'test', 'mspaths2', 'flair', f'{_col}_e1000_b16_im96.csv'))
+        _true_df = pd.DataFrame(_df.query('label == pred_class'))
+        _true_df.sort_values(by='prob_class_1', ascending=False , inplace=True)
+
+        # extract eid with highest prob for true positive progressors
+        best_ids[_col] = _true_df.eid.to_list()[0]
+
+        # get flair_model:
+        model = models.load_model(join(models_dir, model, 'flair', f'{_col}_e1000_b16_im96.pth'))
+
+        heatmap.generate_heatmaps(
+            attention_method="saliency",
+            attent
+
+        )
+    """,
+    name="_"
+)
+
+
 @app.cell
 def _(
     basename,
@@ -1390,6 +1421,9 @@ def _(
     re,
     test_names,
 ):
+
+
+
 
     selected_slices = [31, 38, 50]
     pattern = re.compile(r"sub-(?P<sub>[^_]+)_mod-.*_desc-.*_heatmap\.nii\.gz")
