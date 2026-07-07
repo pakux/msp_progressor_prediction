@@ -71,7 +71,8 @@ def setup_1(mo):
     # data_dir = "/mnt/radbrain_dl/data/"
     models_dir = "models"
     models_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/models"
-    scores_dir =  "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/scores/"
+    scores_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/scores/"
+    explainability_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/explainability"
     # tensor_dir_test = "../../../RadBrainDL_msp/images/"
     tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
     # tensor_dir_test = "/mnt/radbrain_dl/images/"
@@ -117,10 +118,8 @@ def setup_1(mo):
         Path,
         abspath,
         auc,
-        basename,
         cm,
         cmap,
-        cmcrameri,
         color_female,
         color_male,
         columns,
@@ -128,6 +127,7 @@ def setup_1(mo):
         dataloader,
         dataset_order,
         dirname,
+        explainability_dir,
         glob,
         join,
         ks_2samp,
@@ -135,15 +135,14 @@ def setup_1(mo):
         makedirs,
         mcolors,
         models_dir,
-        nib,
         np,
         patientstable,
         pd,
         plot_stat_map,
         plt,
         precision_recall_curve,
-        re,
         roc_curve,
+        scores_dir,
         sfcn_cls,
         sns,
         spidy,
@@ -211,6 +210,7 @@ def _(
         upper = np.percentile(bootstrapped_scores, 97.5)
         return np.mean(bootstrapped_scores), lower, upper
 
+
     def plot_roc_curve(df, y_true="y_test", y_score="y_score", dataset="name"):
         """
         Plot auroc curve for a dataframe
@@ -230,7 +230,9 @@ def _(
             roc_mean, roc_lower, roc_upper = bootstrap_auc(
                 y_true_array, y_score_array, curve="roc"
             )
-            ax = sns.lineplot(x=fpr, y=tpr, label=f"{data_name} (AUC = {roc_auc:.2f})")
+            ax = sns.lineplot(
+                x=fpr, y=tpr, label=f"{data_name} (AUC = {roc_auc:.2f})"
+            )
 
         sns.lineplot(x=[0, 1], y=[0, 1], linestyle="--")
         ax.set_xlim((0, 1))
@@ -243,6 +245,7 @@ def _(
 
         return ax
 
+
     def plot_prc_curve(df, y_true="y_test", y_score="y_score", dataset="name"):
         """Plot Precision-Recall curve with confidence intervals"""
         data_names = df[
@@ -253,7 +256,9 @@ def _(
             subset = df[df[dataset] == data_name]
             y_true_array = np.array(subset[y_true].to_list())
             y_score_array = np.array(subset[y_score].to_list())
-            precision, recall, _ = precision_recall_curve(y_true_array, y_score_array)
+            precision, recall, _ = precision_recall_curve(
+                y_true_array, y_score_array
+            )
             prc_auc = auc(recall, precision)
             prc_mean, prc_lower, prc_upper = bootstrap_auc(
                 y_true_array, y_score_array, curve="prc"
@@ -284,13 +289,16 @@ def _(
 
         return ax
 
+
     def run_test(column_name, data_dir, test_dataset, modality, modelname="sfcn"):
         device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
         test_dataset = dataloader.BrainDataset(
             csv_file=abspath(
                 join(data_dir, test_dataset, "test", f"{column_name}.csv")
             ),
-            root_dir=abspath(join(tensor_dir_test, "mspaths2", f"{modality}96_affine")),
+            root_dir=abspath(
+                join(tensor_dir_test, "mspaths2", f"{modality}96_affine")
+            ),
             column_name=column_name,
             num_rows=None,
             num_classes=2,
@@ -304,7 +312,12 @@ def _(
         # Load the model and accordingly the saved state
         model = sfcn_cls.SFCN(output_dim=2).to(device)
         checkpoint = torch.load(
-            join(models_dir, modelname, modality, f"{column_name}_e1000_b16_im96.pth"),
+            join(
+                models_dir,
+                modelname,
+                modality,
+                f"{column_name}_e1000_b16_im96.pth",
+            ),
             map_location=device,
             weights_only=False,
         )
@@ -342,6 +355,7 @@ def _(
         y_score = np.array(test_outputs_binary).astype(float)
 
         return eids, y_true, y_score
+
 
     df = pd.DataFrame()
     return plot_prc_curve, plot_roc_curve, run_test
@@ -436,7 +450,9 @@ def _(pat_df, pd):
     _df = pd.DataFrame(_demographics).transpose()
     _df.columns = ["count"]
 
-    percentage_df = _df["count"].apply(lambda x: (x / len(pat_df.mpi.unique())) * 100)
+    percentage_df = _df["count"].apply(
+        lambda x: (x / len(pat_df.mpi.unique())) * 100
+    )
     percentage_df
     return
 
@@ -512,7 +528,9 @@ def _(color_female, color_male, pat_df, pd, plt):
 @app.cell
 def _(color_female, color_male, pat_df, pd, plt, sns):
     # Set up the plotting style
-    sns.set_style("whitegrid", )
+    sns.set_style(
+        "whitegrid",
+    )
     sns.set_palette("Set2")
 
     # Create figure with subplots
@@ -525,7 +543,9 @@ def _(color_female, color_male, pat_df, pd, plt, sns):
     gender_dist = pd.crosstab(pat_df["dataset"], pat_df["sex"])
 
     # Plot bar chart
-    gender_dist.plot(kind="bar", ax=ax1, color=colors, edgecolor="black", linewidth=0.5)
+    gender_dist.plot(
+        kind="bar", ax=ax1, color=colors, edgecolor="black", linewidth=0.5
+    )
     ax1.set_xlabel("Dataset")
     ax1.set_ylabel("Count")
     ax1.set_title("Gender Distribution Across Datasets")
@@ -660,7 +680,9 @@ def _(pat_df, plt, sns):
     plt.title("")
 
     # 2) Kruskal-Wallis H-Test (global)
-    groups = [pat_df.loc[pat_df["dataset"] == g, "age"].dropna().values for g in order]
+    groups = [
+        pat_df.loc[pat_df["dataset"] == g, "age"].dropna().values for g in order
+    ]
     kw_stat, kw_p = stats.kruskal(*groups)
 
     # Anzeige des Testergebnisses im Plot
@@ -1034,7 +1056,9 @@ def _(
                     2 * (precision[i] * recall[i]) / (precision[i] + recall[i])
                 )
         f1_idx = np.argmax(f1_scores)
-        f1_threshold = pr_thresholds[f1_idx] if f1_idx < len(pr_thresholds) else 1.0
+        f1_threshold = (
+            pr_thresholds[f1_idx] if f1_idx < len(pr_thresholds) else 1.0
+        )
         f1_precision = precision[f1_idx]
         f1_recall = recall[f1_idx]
 
@@ -1055,6 +1079,7 @@ def _(
             "f1_recall": f1_recall,
             "f1_score": f1_scores[f1_idx],
         }
+
 
     def plot_kaplan_meier(
         time_to_event,
@@ -1199,6 +1224,7 @@ def _(
 
         return km_metrics
 
+
     def kmplots(df, name):
         col_mapping = {"_pst": "PST", "_cst": "CST", "_wst": "WST", "_mdt": "MDT"}
         for _column in columns:
@@ -1210,7 +1236,9 @@ def _(
             )
             _data_df = _data_df.query(f"not(time_{_test_name} <= 0)")
 
-            shortname = next((v for k, v in col_mapping.items() if k in _column), None)
+            shortname = next(
+                (v for k, v in col_mapping.items() if k in _column), None
+            )
             km_data = _data_df.merge(df.query(f'name == "{shortname}"'))
             # km_data.time.fillna(0, inplace=True)
             km_data.dropna(subset=f"time_{_test_name}", inplace=True)
@@ -1239,7 +1267,6 @@ def _(
 
 @app.cell
 def _(columns, data_dir, join, pd):
-
     for _column in columns:
         _data_df = pd.read_csv(
             join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv")
@@ -1307,7 +1334,9 @@ def _(pd):
             _df["modality"] = modality
             _df["test"] = test_name
 
-            attention_maps_df = pd.concat((attention_maps_df, _df), ignore_index=True)
+            attention_maps_df = pd.concat(
+                (attention_maps_df, _df), ignore_index=True
+            )
 
     attention_maps_df.columns
     return attention_maps_df, modalities, test_names
@@ -1321,7 +1350,9 @@ def _():
 
 @app.cell
 def _(attention_maps_df):
-    def get_top_100_per_column(df, region_columns, groupby_cols=["modality", "test"]):
+    def get_top_100_per_column(
+        df, region_columns, groupby_cols=["modality", "test"]
+    ):
         """Get top 100 rows per region column, grouped by modality and test."""
         results = {}
 
@@ -1336,6 +1367,7 @@ def _(attention_maps_df):
             results[region] = top_100
 
         return results
+
 
     # Get all region columns (excluding 'modality' and 'test')
     region_columns = [
@@ -1374,83 +1406,49 @@ def _(mo):
     return
 
 
-app._unparsable_cell(
-    r"""
-    import models
-    import heatmap
-
-    model = "sfcn"
-
-
-    best_ids = {}
-
-    for _col in columns:
-        _df = pd.read_csv(join(scores_dir, model, 'test', 'mspaths2', 'flair', f'{_col}_e1000_b16_im96.csv'))
-        _true_df = pd.DataFrame(_df.query('label == pred_class'))
-        _true_df.sort_values(by='prob_class_1', ascending=False , inplace=True)
-
-        # extract eid with highest prob for true positive progressors
-        best_ids[_col] = _true_df.eid.to_list()[0]
-
-        # get flair_model:
-        model = models.load_model(join(models_dir, model, 'flair', f'{_col}_e1000_b16_im96.pth'))
-
-        heatmap.generate_heatmaps(
-            attention_method="saliency",
-            attent
-
-        )
-    """,
-    name="_"
-)
-
-
 @app.cell
 def _(
-    basename,
     cm,
-    cmcrameri,
+    columns,
+    explainability_dir,
     glob,
     join,
     mcolors,
     modalities,
-    nib,
     np,
+    pd,
     plot_stat_map,
     plt,
-    re,
+    scores_dir,
     test_names,
 ):
-
-
-
-
+    model = "sfcn"
     selected_slices = [31, 38, 50]
-    pattern = re.compile(r"sub-(?P<sub>[^_]+)_mod-.*_desc-.*_heatmap\.nii\.gz")
-    # m = pattern.search("sub-ABC123_mod-{modality}_desc-{test}_heatmap.nii.gz")
-
-    _modality = "FLAIR"
-    _test = "PST"
-
     _vmin = 0
-    _vmax = 0.4
+    _vmax = 0.6
 
-    # find highest attention
-    max_attention = 0
-    for _modality in modalities:
-        for _test in test_names:
-            heatmap = basename(
-                glob(
-                    f"flair-true-pos_same-t1w/sub-*_mod-{_modality}_desc-{_test.upper()}_heatmap.nii.gz"
-                )[0]
+    # -----------------
+    # Extract eids of top FLAIR results
+    # ------------------
+
+    best_ids = {}
+    for _col in columns:
+        _df = pd.read_csv(
+            join(
+                scores_dir,
+                model,
+                "test",
+                "mspaths2",
+                "flair",
+                f"{_col}_e1000_b16_im96.csv",
             )
-            for z in selected_slices:
-                max_attention = max(
-                    max_attention,
-                    nib.load(join("flair-true-pos_same-t1w", heatmap))
-                    .get_fdata()[:, :, z]
-                    .max(),
-                )
+        )
+        _true_df = pd.DataFrame(_df.query("label == pred_class"))
+        _true_df.sort_values(by="prob_class_1", ascending=False, inplace=True)
+
+        # extract eid with highest prob for true positive progressors
+        best_ids[_col] = _true_df.eid.to_list()[0]
+
 
     plt.rcParams.update(
         {
@@ -1471,13 +1469,14 @@ def _(
         }
     )
 
+
     _figure_cols = modalities
     _figure_rows = test_names
     _figure = plt.figure(figsize=(20, 24))
     _figure.patch.set_facecolor("black")
 
     _width_ratios = [1, 5, 5]
-    _height_ratios = [1, 3, 3, 3, 3, 0.2]
+    _height_ratios = [0.3, 2, 2, 2, 2, 0.1]
     print(len(_figure_cols) + 1)
     _gs = plt.GridSpec(
         figure=_figure,
@@ -1486,9 +1485,11 @@ def _(
         width_ratios=_width_ratios,
         height_ratios=_height_ratios,
         wspace=0.15,  # Width space between plots (decrease this to reduce space)
-        hspace=-0.4,  # Height space between plots
+        hspace=0,  # Height space between plots
     )
-    _ax = _figure.subplots()  # This creates a 2D array of axes matching the GridSpec
+    _ax = (
+        _figure.subplots()
+    )  # This creates a 2D array of axes matching the GridSpec
     _ax = np.array(
         [
             [_figure.add_subplot(_gs[i, j]) for j in range(_gs.ncols)]
@@ -1504,34 +1505,65 @@ def _(
             # Optional: Make axis spines invisible for cleaner look
             for spine in _ax[_i, _j].spines.values():
                 spine.set_visible(False)
-            _ax[_i, _j].tick_params(axis="both", which="both", length=0)  # Remove ticks
+            _ax[_i, _j].tick_params(
+                axis="both", which="both", length=0
+            )  # Remove ticks
 
     _figure.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
 
-    for _modality in modalities:
-        for _test in test_names:
-            print(f"{_modality} for test {_test}")
-            heatmap = basename(
-                glob(
-                    f"flair-true-pos_same-t1w/sub-*_mod-{_modality}_desc-{_test.upper()}_heatmap.nii.gz"
-                )[0]
-            )
-            m = pattern.search(heatmap)
-            subject = m.group("sub")
 
-            map = basename(
-                glob(f"flair-true-pos_same-t1w/sub-{subject}_{_modality}.nii.gz")[0]
-            )
+    imagelist = {}
+    for _col in columns:
+        imagelist[_col] = {}
+
+    # Fill in the actual plots
+
+    for _modality in modalities:
+        for _col in columns:
+            _test = _col.split("_")[-2].upper()
+
+            _eid = best_ids[_col]
+            # Get filename of heatmap
+            _heatmap = glob(
+                join(
+                    explainability_dir,
+                    f"{_col}",
+                    "mspaths2",
+                    f"{_modality.lower()}",
+                    f"{model}",
+                    "saliency",
+                    "magnitude",
+                    f"{_col}_e1000_b16_im96",
+                    f"single_{_eid}_*_heatmap.nii.gz",
+                )
+            )[0]
+
+            # get filename of brainimg
+            _brain = glob(
+                join(
+                    explainability_dir,
+                    f"{_col}",
+                    "mspaths2",
+                    f"{_modality.lower()}",
+                    f"{model}",
+                    "saliency",
+                    "magnitude",
+                    f"{_col}_e1000_b16_im96",
+                    f"single_{_eid}_*_brain.nii.gz",
+                )
+            )[0]
+            imagelist[_col][_modality] = [_brain, _heatmap]
+            print(_heatmap)
 
             _f = plot_stat_map(
-                stat_map_img=join("flair-true-pos_same-t1w", heatmap),
-                bg_img=join("flair-true-pos_same-t1w", map),
+                stat_map_img=_heatmap,
+                bg_img=_brain,
                 cut_coords=selected_slices,
                 display_mode="z",
                 radiological=True,
-                cmap=cmcrameri.cm.roma_r,
+                cmap="jet",
                 colorbar=False,
-                transparency=join("flair-true-pos_same-t1w", heatmap),
+                transparency=_heatmap,
                 resampling_interpolation="continuous",
                 transparency_range=[0, 0.1],
                 cbar_tick_format="%.2f",
@@ -1541,32 +1573,13 @@ def _(
                 vmax=_vmax,
                 annotate=False,
                 dim=1.5,
-                axes=_ax[test_names.index(_test) + 1, modalities.index(_modality) + 1],
+                axes=_ax[columns.index(_col) + 1, modalities.index(_modality) + 1],
             )
 
-            # _f = plot_anat(
-            #     join("flair-true-pos_same-t1w", map),
-            #     cut_coords=selected_slices,
-            #     cmap="gray",
-            #     axes= _ax[test_names.index(_test) + 1, modalities.index(_modality) + 1],
-            #     display_mode="z",
-
-            # )
-
-            # _f = plot_roi(
-            #     join("flair-true-pos_same-t1w", heatmap),  # or plot_stat_map for stats
-            #     # bg_img=_f,  # use the existing display
-            #     cmap=cmcrameri.cm.roma_r,
-            #     alpha=0.7,       # controls overlay dominance (try 0.4–1.0)
-            #     display_mode="z",
-            #     cut_coords=selected_slices,
-            # )
-
-            # plt.savefig(
-            #    join("flair-true-pos_same-t1w", f"{_modality}_{_test}.svg")
-            # )
 
     _ax[0, 0].axis("off")  # empty corner cell
+
+    # Tablehead
 
     for _col, _mod in enumerate(modalities, start=1):
         _ax[0, _col].axis("off")
@@ -1580,6 +1593,7 @@ def _(
             fontsize=40,
         )
 
+    # Show Test names
     for _row, _name in enumerate(test_names, start=1):
         _ax[_row, 0].axis("off")
         _ax[_row, 0].text(
@@ -1598,31 +1612,35 @@ def _(
     # ------------------------------------------------------------------
     cax = _figure.add_subplot(_gs[-1, 1:3])
     cax.set_facecolor("black")
-    cax.tick_params(colors="white", labelsize=14)
+    cax.tick_params(colors="white", labelsize=24)
+    cax.set_box_aspect(0.1)
     # cax = _ax[-1, 1:]
 
     # Create a ScalarMappable that matches nilearn's display
     norm = mcolors.Normalize(vmin=_vmin, vmax=_vmax)
     sm = cm.ScalarMappable(
-        cmap=cmcrameri.cm.roma_r,
+        cmap="jet",
         norm=norm,
     )
     sm.set_array([])
 
-    _figure.colorbar(
+    _cbar = _figure.colorbar(
         sm,
         cax=cax,
         orientation="horizontal",
         label="Intensity",
-        # shrink=0.8,
         format="%.2f",
-        fraction=0.15,
-        pad=0.3,
-        aspect=30,
+        aspect=0.01,
     )
 
+    _cbar.set_ticks([0, 0.2, 0.4, 0.6], labels=[0.1, 0.2, 0.4, 0.6])
     plt.savefig("heatmaps_sliced_t1w_flair.svg")
     plt.show()
+    return
+
+
+@app.cell
+def _():
     return
 
 
