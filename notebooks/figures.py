@@ -100,6 +100,8 @@ def setup_1(mo):
         "worst_progressor_2ycutoff_mdt_2z",
     ]
 
+    test_order = ["PST", "MDT", "CST", "WST"]
+
     palette = sns.color_palette("Set2", 3)
     cmap = ListedColormap(palette)
 
@@ -108,6 +110,8 @@ def setup_1(mo):
     sns.set_context("notebook")
 
     dataset_order = ["training", "validation", "test"]
+
+
 
     color_female = "#008080"
     color_male = "#FFA500"
@@ -147,6 +151,7 @@ def setup_1(mo):
         sns,
         spidy,
         tensor_dir_test,
+        test_order,
         torch,
     )
 
@@ -211,14 +216,17 @@ def _(
         return np.mean(bootstrapped_scores), lower, upper
 
 
-    def plot_roc_curve(df, y_true="y_test", y_score="y_score", dataset="name"):
+    def plot_roc_curve(df, y_true="y_test", y_score="y_score", dataset="name", figure=None, ax=None):
         """
         Plot auroc curve for a dataframe
         """
         data_names = df[
             dataset
         ].unique()  # retrieve different dataset-names from df (dataset-column defaults to "name")
-        f = plt.figure(figsize=(10, 8))
+        if figure is None:
+            f = plt.figure(figsize=(10, 8))
+        else:
+            f = figure
 
         for data_name in data_names:
             subset = df[df[dataset] == data_name]
@@ -231,10 +239,13 @@ def _(
                 y_true_array, y_score_array, curve="roc"
             )
             ax = sns.lineplot(
-                x=fpr, y=tpr, label=f"{data_name} (AUC = {roc_auc:.2f})"
+                x=fpr, 
+                y=tpr,
+                label=f"{data_name} (AUC = {roc_auc:.2f})",
+                ax=ax
             )
 
-        sns.lineplot(x=[0, 1], y=[0, 1], linestyle="--")
+        sns.lineplot(x=[0, 1], y=[0, 1], linestyle="--", ax=ax)
         ax.set_xlim((0, 1))
         ax.set_ylim((0, 1.05))
         ax.set_xlabel("False Positive Rate")
@@ -246,12 +257,14 @@ def _(
         return ax
 
 
-    def plot_prc_curve(df, y_true="y_test", y_score="y_score", dataset="name"):
+    def plot_prc_curve(df, y_true="y_test", y_score="y_score", dataset="name", figure=None, ax=None):
         """Plot Precision-Recall curve with confidence intervals"""
         data_names = df[
             dataset
         ].unique()  # retrieve different dataset-names from df (dataset-column defaults to "name")
-        f = plt.figure(figsize=(10, 8))
+
+        f = plt.figure(figsize=(10, 8)) if figure is None else figure
+
         for data_name in data_names:
             subset = df[df[dataset] == data_name]
             y_true_array = np.array(subset[y_true].to_list())
@@ -270,16 +283,19 @@ def _(
                 y=precision,
                 lw=2,
                 label=f"{data_name} (AUC = {prc_auc:.2f} [{prc_lower:.2f}–{prc_upper:.2f}])",
+                ax=ax
             )
 
-        plt.hlines(
-            pos_rate,
-            0,
-            1,
-            colors="gray",
-            linestyles="--",
-            label=f"Baseline = {pos_rate:.3f}",
-        )
+        # plt.hlines(
+            # pos_rate,
+            # 0,
+            # 1,
+            # colors="gray",
+            # linestyles="--",
+            # label=f"Baseline = {pos_rate:.3f}",
+            # ax=ax
+        # )
+        sns.lineplot(x=[0,1], y=[pos_rate, pos_rate], linestyle="--", ax=ax)
 
         ax.set_xlim([0.0, 1.0])
         ax.set_ylim([0.0, 1.05])
@@ -994,6 +1010,88 @@ def _(df_flair, plot_prc_curve, plt):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    data: {"type": "error", "errorText": "'OpenAIModelProfile' object has no attribute 'supports_thinking'"}
+    """)
+    return
+
+
+@app.cell
+def _(df_flair, df_t1w, modalities, plot_prc_curve, plot_roc_curve, plt):
+    _fig, _axs = plt.subplots(3,3,figsize=(15, 15))
+
+    _width_ratios = [0.3, 5, 5]
+    _height_ratios = [0.3, 5, 5]
+
+    _gs = plt.GridSpec(
+        figure=_fig,
+        ncols= 3,
+        nrows= 3,
+        width_ratios=_width_ratios,
+        height_ratios=_height_ratios,
+        wspace=0.15,  # Width space between plots (decrease this to reduce space)
+        hspace=0,  # Height space between plots
+    )
+
+    plt.subplots_adjust(top=0.85, bottom=0.15, left=0.1, right=0.9, hspace=0)
+
+
+    _axs[0, 0].axis("off")  # empty corner cell
+
+
+
+
+    # Tablehead
+
+    for _col, _mod in enumerate(modalities, start=1):
+        _axs[0, _col].axis("off")
+        _axs[0, _col].text(
+            0.5,
+            0.5,
+            _mod,
+            ha="center",
+            va="center",
+            color="black",
+            fontsize=30,
+        )
+
+    # Curve names
+    for _row, _name in enumerate(["ROC", "PRC"], start=1):
+        _axs[_row, 0].axis("off")
+        _axs[_row, 0].text(
+            0.5,
+            0.5,
+            _name.upper(),
+            ha="right",
+            va="center",
+            color="black",
+            fontsize=30,
+            rotation=90,
+        )
+
+    _fig.add_subplot(plot_roc_curve(df_t1w,   ax=_axs[1,1], figure=_fig))
+    _fig.add_subplot(plot_prc_curve(df_t1w,   ax=_axs[2,1], figure=_fig))
+    _fig.add_subplot(plot_roc_curve(df_flair, ax=_axs[1,2], figure=_fig))
+    _fig.add_subplot(plot_prc_curve(df_flair, ax=_axs[2,2], figure=_fig))
+
+    for _x in [1,2]:
+        for _y in [1,2]:
+            _axs[_x,_y].set_title('')
+
+    plt.tight_layout()
+    plt.savefig("auroc_prc.svg")
+
+    plt.show()
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     # Figure 3: Progression Curves
 
     ## Kaplan Meier Curves for T1w
@@ -1298,7 +1396,7 @@ def _(mo):
 
 @app.cell
 def _(df_flair, kmplots):
-    kmplots(df_flair, "FLAIR")
+    _ax = kmplots(df_flair, "FLAIR")
     return
 
 
@@ -1653,12 +1751,13 @@ def _(mo):
 
 
 @app.cell
-def _(pd, plt, sns, spidy):
+def _(pd, plt, sns, spidy, test_order):
     ##### FLAIR
 
     sns.set_style("whitegrid")
     sns.set_theme(style="whitegrid", rc=None)
 
+    sns.set_context("notebook", font_scale=1.75)
     plt.rcParams.update(
         {
             # Figure / saved‑file background
@@ -1726,6 +1825,9 @@ def _(pd, plt, sns, spidy):
         id_vars=["test"], var_name="region", value_name="value"
     )
 
+
+
+
     regions_long_df = regions_long_df.rename(columns={"test": "dataset"})
 
     _ax = spidy.spiderplot(
@@ -1745,19 +1847,61 @@ def _(pd, plt, sns, spidy):
     plt.savefig("regional_major_attention_t1w.png")
     plt.show()
 
+    regions_long_df = pd.DataFrame()
+    for _modality in ["t1w", "flair"]:
+        _mod_region_df = pd.read_csv(f"im96_{_modality}.csv")
+        _mod_region_df["test"] = region_df.test.str.upper()
+        _mod_regions_long_df = _mod_region_df.melt(id_vars=["test"], var_name="region", value_name="value")
+        _mod_regions_long_df["modality"] = "T1w" if _modality == "t1w" else "FLAIR"
+
+
+        regions_long_df = pd.concat((regions_long_df, _mod_regions_long_df))
+
+    regions_long_df = regions_long_df.rename(columns={"test": "dataset"})
+
+    print(regions_long_df)
+
+
     grid = sns.FacetGrid(
         regions_long_df,
-        col="dataset",
-        col_wrap=4,
+        #x='region',
+        row="dataset",
+        col="modality",
         hue="dataset",
+        row_order=test_order,
         sharey=True,
         sharex=True,
         height=4,
         aspect=1.5,
     )
-    grid.map_dataframe(sns.barplot, "value", "region")
-    grid.fig.tight_layout(w_pad=1)
-    grid.set_titles(col_template="{col_name}")
+    grid.map_dataframe(sns.barplot, "region", "value")
+    grid.set_titles(row_template="", col_template="{col_name}")
+    grid.set_axis_labels("")
+
+    # Rotate x-axis tick labels
+    for _ax in grid.axes.flat:
+        _ax.tick_params(axis='x', rotation=60, labelrotation_mode="xtick")
+        _ax.set_xlabel("")
+
+
+    for _i, _ax in enumerate(grid.axes):
+        _bbox = _ax[0].get_position()  # Get subplot position in figure coordinates
+        grid.fig.text(
+            _bbox.x0 - 0.1,         # 2.5% of figure width to the left
+            _bbox.y0 + _bbox.height / 2,  # Vertically centered
+            grid.row_names[_i],       # Row title
+            ha='right', va='center', rotation=90, fontsize=20, weight=700
+        )
+        for _j, _axcol in enumerate(_ax):
+            if _i == 0:
+            
+                _axcol.set_title(grid.col_names[_j], fontsize=20, weight=700)
+            
+            else:
+                _axcol.set_title("")
+
+    plt.savefig('regional_attention.svg')
+    plt.savefig('regional_attention.png')
 
     plt.show()
     return region_df, regions_long_df
