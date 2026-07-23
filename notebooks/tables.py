@@ -304,7 +304,7 @@ def characteristics(
                     [
                         len(
                             baseline_characteristics_df.query(
-                                'mstype == "Clinically Isolated Syndrome" and dataset==@ds'
+                                'mstype != "Clinically Isolated Syndrome" and dataset==@ds'
                             )
                         ),
                         len(
@@ -345,7 +345,7 @@ def characteristics(
                     [
                         len(
                             baseline_characteristics_df.query(
-                                'mstype == "Progressive Relapsing MS" and dataset==@ds'
+                                'mstype != "Progressive Relapsing MS" and dataset==@ds'
                             )
                         ),
                         len(
@@ -388,7 +388,7 @@ def characteristics(
                     [
                         len(
                             baseline_characteristics_df.query(
-                                'mstype == "Relapsing Remitting MS" and dataset==@ds'
+                                'mstype != "Relapsing Remitting MS" and dataset==@ds'
                             )
                         ),
                         len(
@@ -429,7 +429,7 @@ def characteristics(
                     [
                         len(
                             baseline_characteristics_df.query(
-                                'mstype == "Secondary Progressive MS" and dataset==@ds'
+                                'mstype != "Secondary Progressive MS" and dataset==@ds'
                             )
                         ),
                         len(
@@ -469,7 +469,7 @@ def characteristics(
                     [
                         len(
                             baseline_characteristics_df.query(
-                                'mstype == "Primary Progressive MS" and dataset==@ds'
+                                'mstype != "Primary Progressive MS" and dataset==@ds'
                             )
                         ),
                         len(
@@ -495,6 +495,12 @@ def characteristics(
                 )
             )
 
+            _n_trainingprogressors = len(
+                baseline_characteristics_df.query(
+                    f'dataset == "training" and {progression_col(_t)} == 1'
+                )
+            )
+
             _n_progressors = len(
                 baseline_characteristics_df.query(
                     f"dataset == @ds and {progression_col(_t)} == 1"
@@ -507,20 +513,13 @@ def characteristics(
             )
             if ds in ["validation", "external test"]:
                 # TODO: add here mann-whitney-u
-                # _progressor_training = np.array([
-                #      [
-                #          _n,
-                #         _n_training
-                #                           ],
-                #      [
-                #          _n,
-                #          _n_progressors
-                #      ]
-                # ])
-                # print(_progressor_training)
-                # _odds_ratio, _p_value = fisher_exact(_progressor_training)
-                # demographics[f"progressors_{_t}"].append(f"{_p_value:0.4f}")
-                demographics[f"progressors_{_t}"].append(pd.NA)
+                _progressor_training = np.array(
+                    [[_n_training, _n_trainingprogressors], [_n, _n_progressors]]
+                )
+
+                _odds_ratio, _p_value = fisher_exact(_progressor_training)
+                demographics[f"progressors_{_t}"].append(f"{_p_value:0.4f}")
+                # demographics[f"progressors_{_t}"].append(pd.NA)
     # pd.DataFrame(demographics)
     demographics
     pd.DataFrame(demographics).transpose()
