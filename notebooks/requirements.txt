@@ -5,3 +5,8 @@ tables
 torch
 scikit-learn
 nbformat
+cmcrameri
+nibabel
+spiderplot
+lifelines
+nilearn

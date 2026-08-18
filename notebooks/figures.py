@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.3"
+__generated_with = "0.24.0"
 app = marimo.App(width="medium", app_title="Figures and plots")
 
 
@@ -1928,8 +1928,62 @@ def _(mo):
 
 
 @app.cell
-def _(pd):
-    pd.read_csv("region_means.tsv", sep="\t")
+def _(pd, plt, sns, test_order):
+    fsregions_df = pd.read_csv("region_means.tsv", 
+                                  sep="\t", 
+                                  dtype={'subject': str})
+
+
+
+    fsgrid = sns.FacetGrid(
+        fsregions_df,
+        #x='region',
+        row="neurotes",
+        col="modality",
+        hue="neurotes",
+        row_order=test_order,
+        sharey=True,
+        sharex=True,
+        height=4,
+        aspect=1.5,
+    )
+    fsgrid.map_dataframe(sns.boxplot, "region", "mean_intensity")
+    fsgrid.set_titles(row_template="", col_template="{col_name}")
+    fsgrid.set_axis_labels("")
+
+    # Rotate x-axis tick labels
+    for _ax in fsgrid.axes.flat:
+        _ax.tick_params(axis='x', rotation=60, labelrotation_mode="xtick")
+        _ax.set_xlabel("")
+
+
+    for _i, _ax in enumerate(fsgrid.axes):
+        _bbox = _ax[0].get_position()  # Get subplot position in figure coordinates
+        fsgrid.fig.text(
+            _bbox.x0 - 0.1,         # 2.5% of figure width to the left
+            _bbox.y0 + _bbox.height / 2,  # Vertically centered
+            fsgrid.row_names[_i],       # Row title
+            ha='right', va='center', rotation=90, fontsize=20, weight=700
+        )
+        for _j, _axcol in enumerate(_ax):
+            if _i == 0:
+
+                _axcol.set_title(fsgrid.col_names[_j], fontsize=20, weight=700)
+
+            else:
+                _axcol.set_title("")
+
+    plt.savefig('regional_attention.svg')
+    plt.savefig('regional_attention.png')
+
+    plt.show()
+
+    return (fsregions_df,)
+
+
+@app.cell
+def _(fsregions_df):
+    fsregions_df
     return
 
 
