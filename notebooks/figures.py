@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.10"
+__generated_with = "0.23.3"
 app = marimo.App(width="medium", app_title="Figures and plots")
 
 
@@ -1894,9 +1894,9 @@ def _(pd, plt, sns, spidy, test_order):
         )
         for _j, _axcol in enumerate(_ax):
             if _i == 0:
-            
+
                 _axcol.set_title(grid.col_names[_j], fontsize=20, weight=700)
-            
+
             else:
                 _axcol.set_title("")
 
@@ -1916,6 +1916,20 @@ def _(region_df):
 @app.cell
 def _(regions_long_df):
     regions_long_df
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Top regions with Freesurfer results
+    """)
+    return
+
+
+@app.cell
+def _(pd):
+    pd.read_csv("region_means.tsv", sep="\t")
     return
 
 
