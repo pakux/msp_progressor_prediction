@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.23.10"
 app = marimo.App(width="medium", app_title="Figures and plots")
 
 
@@ -76,7 +76,7 @@ def setup_1(mo):
     # tensor_dir_test = "../../../RadBrainDL_msp/images/"
     tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
     # tensor_dir_test = "/mnt/radbrain_dl/images/"
-
+    evaluations_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/evaluations/"
     sys.path.append(braindraindir)
     try:
         from utils.architectures import sfcn_cls
@@ -131,6 +131,7 @@ def setup_1(mo):
         dataloader,
         dataset_order,
         dirname,
+        evaluations_dir,
         explainability_dir,
         glob,
         join,
@@ -1929,11 +1930,18 @@ def _(mo):
 
 @app.cell
 def _(pd, plt, sns, test_order):
+    # read region means
     fsregions_df = pd.read_csv("region_means.tsv", 
                                   sep="\t", 
                                   dtype={'subject': str})
+    fsregions_df['neurotes'] = fsregions_df.neurotes.str.upper() 
 
 
+    # We don't need to aggregate the rows it's easier if we put together stuff from the original table
+
+    fsregions_molten_df = fsregions_df.groupby(by=["neurotes", "modality", "region"]).aggregate({"mean_intensity": ["mean","std"] })
+    # fsregions_molten_df.reset_index(inplace=True)
+    print(fsregions_molten_df)
 
     fsgrid = sns.FacetGrid(
         fsregions_df,
@@ -1947,14 +1955,18 @@ def _(pd, plt, sns, test_order):
         height=4,
         aspect=1.5,
     )
-    fsgrid.map_dataframe(sns.boxplot, "region", "mean_intensity")
+    fsgrid.map_dataframe(sns.barplot, "region", "mean_intensity")
     fsgrid.set_titles(row_template="", col_template="{col_name}")
     fsgrid.set_axis_labels("")
+
+
+
 
     # Rotate x-axis tick labels
     for _ax in fsgrid.axes.flat:
         _ax.tick_params(axis='x', rotation=60, labelrotation_mode="xtick")
         _ax.set_xlabel("")
+        _ax.set_ylabel("")
 
 
     for _i, _ax in enumerate(fsgrid.axes):
@@ -1967,6 +1979,8 @@ def _(pd, plt, sns, test_order):
         )
         for _j, _axcol in enumerate(_ax):
             if _i == 0:
+                fsgrid.col_names[_j] = "MPRAGE" if fsgrid.col_names[_j].lower() == "t1w" else fsgrid.col_names[_j]
+                fsgrid.col_names[_j] = "FLAIR" if fsgrid.col_names[_j].lower() == "flair" else fsgrid.col_names[_j]
 
                 _axcol.set_title(fsgrid.col_names[_j], fontsize=20, weight=700)
 
@@ -1977,13 +1991,61 @@ def _(pd, plt, sns, test_order):
     plt.savefig('regional_attention.png')
 
     plt.show()
-
     return (fsregions_df,)
 
 
 @app.cell
 def _(fsregions_df):
-    fsregions_df
+    fsregions_df.query('region=="CorpusCallossum"')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Confusion Matrices
+    """)
+    return
+
+
+@app.cell
+def _(columns, evaluations_dir, join, np, pd, plt, sns):
+    cms_df = pd.DataFrame()
+    for _modality in ["t1w", "flair"]:
+        for _colname in columns:
+            _df = pd.read_csv(join(evaluations_dir, "metrics", "sfcn", "test", "mspaths2", _modality, f"{_colname}_e1000_b16_im96.csv"))
+
+            _cm = _df[['tn', 'fp', 'fn', 'tp']]
+            _cm['modality'] = _modality
+            _cm['neurotest'] = _colname.split('_')[3]
+            cms_df = pd.concat((cms_df, _cm), ignore_index=True)
+
+    _fig, _axes = plt.subplots(4, 2, figsize=(16, 8),  facecolor='white')
+    _fig.patch.set_facecolor('white')
+
+    _axes = _axes.flatten()
+
+    _labels = ['Negativ', 'Positiv']  # True / Predicted Reihenfolge
+
+    for _i, (_, _row) in enumerate(cms_df.iterrows()):
+        # Standard-Layout: Zeilen = True, Spalten = Predicted
+        _cm = np.array([[_row['tn'], _row['fp']],
+                       [_row['fn'], _row['tp']]])
+    
+        _ax = _axes[_i]
+        sns.heatmap(_cm, annot=True, fmt='d', cmap='Blues',
+                    xticklabels=_labels, yticklabels=_labels,
+                    ax=_ax, cbar=False, square=True, linewidths=0.5)
+    
+        _ax.set_xlabel('Predicted', fontsize=10)
+        _ax.set_ylabel('True', fontsize=10)
+        _ax.set_title(f"{_row['modality'].upper()} | {_row['neurotest'].upper()}", fontsize=11, fontweight='bold')
+        _ax.tick_params(axis='both', labelsize=9)
+        _ax.set_facecolor('white')
+    
+    plt.suptitle('Confusion Matrices per Modality & Neurotest', fontsize=14, y=1.02)
+    # plt.savefig('confusion_matrices.pdf', dpi=300, bbox_inches='tight')
+    plt.show()
     return
 
 
