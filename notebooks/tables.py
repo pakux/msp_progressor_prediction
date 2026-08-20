@@ -15,7 +15,7 @@ def setup_1():
     import marimo as mo
     import pandas as pd
     from os.path import join, abspath, isfile
-    from scipy.stats import chi2_contingency, mannwhitneyu, fisher_exact, ttest_ind
+    from scipy.stats import chi2_contingency, mannwhitneyu, fisher_exact, ttest_ind, chisquare
 
     tests = ["pst", "mdt", "wst", "cst"]
     models = ["sfcn", "ssl-finetuned", "lora", "dense", "swin"]
@@ -96,7 +96,7 @@ def _(mo):
 @app.cell
 def characteristics(
     baseline_characteristics_df,
-    fisher_exact,
+    chi2_contingency,
     mannwhitneyu,
     np,
     pd,
@@ -212,7 +212,7 @@ def characteristics(
                     ],
                 ]
             )
-            _odds_ratio, _p_value = fisher_exact(_sex_training)
+            _odds_ratio, _p_value, dof, expected = chi2_contingency(_sex_training)
             demographics["sex"].append(f"{_p_value:0.3f}")
 
         demographics["age"].append(
@@ -315,7 +315,7 @@ def characteristics(
                     ],
                 ]
             )
-            _odds_ratio, _p_value = fisher_exact(_cis_training)
+            _odds_ratio, _p_value, dof, expected = chi2_contingency(_cis_training)
             demographics["mstype_cis"].append(f"{_p_value:0.3f}")
 
         demographics["mstype_prms"].append(
@@ -356,7 +356,7 @@ def characteristics(
                     ],
                 ]
             )
-            _odds_ratio, _p_value = fisher_exact(_cis_training)
+            _odds_ratio, _p_value, dof, expected = chi2_contingency(_cis_training)
             demographics["mstype_prms"].append(f"{_p_value:0.3f}")
 
             # demographics["mstype_"].append(pd.NA)
@@ -399,7 +399,7 @@ def characteristics(
                     ],
                 ]
             )
-            _odds_ratio, _p_value = fisher_exact(_cis_training)
+            _odds_ratio, _p_value, dof, expected = chi2_contingency(_cis_training)
             demographics["mstype_rrms"].append(f"{_p_value:0.3f}")
 
         demographics["mstype_spms"].append(
@@ -440,7 +440,7 @@ def characteristics(
                     ],
                 ]
             )
-            _odds_ratio, _p_value = fisher_exact(_spms_training)
+            _odds_ratio, _p_value, dof, expected = chi2_contingency(_spms_training)
             demographics["mstype_spms"].append(f"{_p_value:0.3f}")
 
         demographics["mstype_ppms"].append(
@@ -480,7 +480,7 @@ def characteristics(
                     ],
                 ]
             )
-            _odds_ratio, _p_value = fisher_exact(_ppms_training)
+            _odds_ratio, _p_value, dof, expected = chi2_contingency(_ppms_training)
             demographics["mstype_ppms"].append(f"{_p_value:0.3f}")
 
         for _t in tests:
@@ -517,7 +517,7 @@ def characteristics(
                     [[_n_training, _n_trainingprogressors], [_n, _n_progressors]]
                 )
 
-                _odds_ratio, _p_value = fisher_exact(_progressor_training)
+                _odds_ratio, _p_value, dof, expected = chi2_contingency(_progressor_training)
                 demographics[f"progressors_{_t}"].append(f"{_p_value:0.4f}")
                 # demographics[f"progressors_{_t}"].append(pd.NA)
     # pd.DataFrame(demographics)
@@ -993,6 +993,42 @@ def _(batchsize, eval_dir, imagesize, isfile, join, models, pd, tests):
 
 
     pd.DataFrame(_performance)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Youdens metric
+    """)
+    return
+
+
+@app.cell
+def _(batchsize, eval_dir, imagesize, join, pd, tests):
+    youden_df = pd.DataFrame()
+    for _modality in ["t1w", "flair"]:
+        for _neurotest in tests:
+            _fname = join(eval_dir,"metrics", "sfcn", "test", "mspaths2", _modality,                f"worst_progressor_2ycutoff_{_neurotest}_2z_e1000_b{batchsize}_im{imagesize}_thresholds.csv")
+            _df = pd.read_csv(_fname)
+            _df['modality'] = _modality
+            _df['neurotest'] = _neurotest
+            youden_df = pd.concat((youden_df, _df), ignore_index=False)
+
+    youden_df = youden_df[['modality', 'neurotest', 'youden_threshold', 'youden_sensitivity', 'youden_specificity', 'youden_index']]
+    youden_df['Classification Rule'] = (
+        "Score ≥ " + youden_df['youden_threshold'].round(4).astype(str) + 
+        " → High Risk")
+
+
+    # ✅ Step 1: Round all numeric columns to 4 decimal places
+    # Select only numeric columns
+    numeric_cols = youden_df.select_dtypes(include='number').columns
+
+    # Apply rounding
+    youden_df[numeric_cols] = youden_df[numeric_cols].round(4)
+
+    youden_df
     return
 
 

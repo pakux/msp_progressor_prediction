@@ -2009,43 +2009,128 @@ def _(mo):
 
 
 @app.cell
-def _(columns, evaluations_dir, join, np, pd, plt, sns):
+def _(columns, evaluations_dir, join, pd, plt, sns, test_order):
     cms_df = pd.DataFrame()
+
+
     for _modality in ["t1w", "flair"]:
         for _colname in columns:
             _df = pd.read_csv(join(evaluations_dir, "metrics", "sfcn", "test", "mspaths2", _modality, f"{_colname}_e1000_b16_im96.csv"))
 
             _cm = _df[['tn', 'fp', 'fn', 'tp']]
             _cm['modality'] = _modality
-            _cm['neurotest'] = _colname.split('_')[3]
+            _cm['neurotest'] = _colname.split('_')[3].upper()
             cms_df = pd.concat((cms_df, _cm), ignore_index=True)
 
-    _fig, _axes = plt.subplots(4, 2, figsize=(16, 8),  facecolor='white')
-    _fig.patch.set_facecolor('white')
+    rows = []
+    for _, r in cms_df.iterrows():
+        rows.append({
+            "Predicted": "Positive", "True Label": "Positive", "Count": r["tp"],
+            "modality": r["modality"], "neurotest": r["neurotest"],
+        })
+        rows.append({
+            "Predicted": "Positive", "True Label": "Negative", "Count": r["fp"],
+            "modality": r["modality"], "neurotest": r["neurotest"],
+        })
+        rows.append({
+            "Predicted": "Negative", "True Label": "Positive", "Count": r["fn"],
+            "modality": r["modality"], "neurotest": r["neurotest"],
+        })
+        rows.append({
+            "Predicted": "Negative", "True Label": "Negative", "Count": r["tn"],
+            "modality": r["modality"], "neurotest": r["neurotest"],
+        })
 
-    _axes = _axes.flatten()
+    cm_long = pd.DataFrame(rows)
 
-    _labels = ['Negativ', 'Positiv']  # True / Predicted Reihenfolge
+    # Reihenfolge der Klassen fixieren
+    cat_order = ["Negative", "Positive"]
 
-    for _i, (_, _row) in enumerate(cms_df.iterrows()):
-        # Standard-Layout: Zeilen = True, Spalten = Predicted
-        _cm = np.array([[_row['tn'], _row['fp']],
-                       [_row['fn'], _row['tp']]])
+
+    g = sns.FacetGrid(
+        cm_long,
+        col="modality",          # Spalten = Modalities
+        row="neurotest",         # Zeilen = Neurotests
+        row_order=test_order,
+        margin_titles=True,
+        despine=True,
+        sharex=True,
+        sharey=True,
+        height=4,
+        aspect=1.5,
     
-        _ax = _axes[_i]
-        sns.heatmap(_cm, annot=True, fmt='d', cmap='Blues',
-                    xticklabels=_labels, yticklabels=_labels,
-                    ax=_ax, cbar=False, square=True, linewidths=0.5)
-    
-        _ax.set_xlabel('Predicted', fontsize=10)
-        _ax.set_ylabel('True', fontsize=10)
-        _ax.set_title(f"{_row['modality'].upper()} | {_row['neurotest'].upper()}", fontsize=11, fontweight='bold')
-        _ax.tick_params(axis='both', labelsize=9)
-        _ax.set_facecolor('white')
-    
-    plt.suptitle('Confusion Matrices per Modality & Neurotest', fontsize=14, y=1.02)
-    # plt.savefig('confusion_matrices.pdf', dpi=300, bbox_inches='tight')
+    )
+
+    # ── 3. Heatmap auf jedes Facet mappen ──
+    def draw_heatmap(data, **kwargs):
+        pivot = data.pivot_table(
+            index="True Label",
+            columns="Predicted",
+            values="Count",
+            fill_value=0,
+        )
+        # Sicherstellen, dass beide Achsen beide Klassen enthalten
+        pivot = pivot.reindex(index=cat_order, columns=cat_order, fill_value=0)
+        sns.heatmap(
+            pivot,
+            annot=True,
+            fmt="3g",
+            cmap="Blues",
+            cbar=False,
+            square=True,
+            linewidths=0.5,
+            linecolor="gray",
+            **kwargs
+        )
+    g.map_dataframe(draw_heatmap)
+    # Achsen-Tick-Labels auf allen Facets setzen
+    g.set_titles(col_template="", row_template="")
+    g.set_axis_labels("")
+
+
+
+    g.set_axis_labels("Predicted", "True Label")
+    for _ax in g.axes.flat:
+        _ax.set_xticks([0.5, 1.5])
+        _ax.set_xticklabels(cat_order, rotation=0)
+        _ax.set_yticks([0.5, 1.5])
+        _ax.set_yticklabels(cat_order, rotation=0)
+
+    for _i, _ax in enumerate(g.axes):
+        _bbox = _ax[0].get_position()  # Get subplot position in figure coordinates
+        g.fig.text(
+            _bbox.x0 - 0.15,         # 2.5% of figure width to the left
+            _bbox.y0 + _bbox.height / 2,  # Vertically centered
+            g.row_names[_i].upper(),       # Row title
+            ha='right', va='center', rotation=90, fontsize=20, weight=700
+        )
+        for _j, _axcol in enumerate(_ax):
+            if _i == 0:
+                g.col_names[_j] = "MPRAGE" if g.col_names[_j].lower() == "t1w" else g.col_names[_j]
+                g.col_names[_j] = "FLAIR" if g.col_names[_j].lower() == "flair" else g.col_names[_j]
+
+                _axcol.set_title(g.col_names[_j], fontsize=20, weight=700)
+
+            else:
+                _axcol.set_title("")
+
+
+    g.fig.subplots_adjust(left=0.15, top=0.95)  
+    plt.tight_layout()
+    plt.savefig("confusion_matrices.svg")
+    plt.savefig("confusion_matrices.png",     
+                dpi=300,
+                bbox_inches="tight",    # schneidet nicht ab, erfasst fig.text
+                pad_inches=0.2,         # etwas Padding rundherum)
+               )
+
+
     plt.show()
+    return
+
+
+@app.cell
+def _():
     return
 
 
