@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.23.10"
-app = marimo.App(width="medium", app_title="Figures and plots")
+__generated_with = "0.24.0"
+app = marimo.App(width="full", app_title="Figures and plots")
 
 
 @app.cell(hide_code=True)
@@ -34,7 +34,7 @@ def setup_1(mo):
     from os import makedirs
     from os.path import abspath, basename, dirname, join
     from pathlib import Path
-
+    import matplotlib
     import cmcrameri
     import matplotlib.cm as cm
     import matplotlib.colors as mcolors
@@ -72,7 +72,9 @@ def setup_1(mo):
     models_dir = "models"
     models_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/models"
     scores_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/scores/"
-    explainability_dir = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/explainability"
+    explainability_dir = (
+        "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/explainability"
+    )
     # tensor_dir_test = "../../../RadBrainDL_msp/images/"
     tensor_dir_test = "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/images"
     # tensor_dir_test = "/mnt/radbrain_dl/images/"
@@ -111,10 +113,13 @@ def setup_1(mo):
 
     dataset_order = ["training", "validation", "test"]
 
-
-
     color_female = "#008080"
     color_male = "#FFA500"
+
+    sns.set_style("whitegrid")
+    sns.set_theme(style="whitegrid", rc=None)
+
+    sns.set_context("notebook", font_scale=1.75)
     return (
         DataLoader,
         F,
@@ -138,6 +143,7 @@ def setup_1(mo):
         ks_2samp,
         logrank_test,
         makedirs,
+        matplotlib,
         mcolors,
         models_dir,
         np,
@@ -191,7 +197,9 @@ def _(
     tensor_dir_test,
     torch,
 ):
-    def bootstrap_auc(y_true, y_score, curve="roc", n_bootstraps=1000, seed=42):
+    def bootstrap_auc(
+        y_true, y_score, curve="roc", n_bootstraps=1000, seed=42
+    ):
         """Calculate AUC with bootstrap confidence intervals"""
         rng = np.random.RandomState(seed)
         bootstrapped_scores = []
@@ -216,8 +224,14 @@ def _(
         upper = np.percentile(bootstrapped_scores, 97.5)
         return np.mean(bootstrapped_scores), lower, upper
 
-
-    def plot_roc_curve(df, y_true="y_test", y_score="y_score", dataset="name", figure=None, ax=None):
+    def plot_roc_curve(
+        df,
+        y_true="y_test",
+        y_score="y_score",
+        dataset="name",
+        figure=None,
+        ax=None,
+    ):
         """
         Plot auroc curve for a dataframe
         """
@@ -240,10 +254,7 @@ def _(
                 y_true_array, y_score_array, curve="roc"
             )
             ax = sns.lineplot(
-                x=fpr, 
-                y=tpr,
-                label=f"{data_name} (AUC = {roc_auc:.2f})",
-                ax=ax
+                x=fpr, y=tpr, label=f"{data_name} (AUC = {roc_auc:.2f})", ax=ax
             )
 
         sns.lineplot(x=[0, 1], y=[0, 1], linestyle="--", ax=ax)
@@ -257,8 +268,14 @@ def _(
 
         return ax
 
-
-    def plot_prc_curve(df, y_true="y_test", y_score="y_score", dataset="name", figure=None, ax=None):
+    def plot_prc_curve(
+        df,
+        y_true="y_test",
+        y_score="y_score",
+        dataset="name",
+        figure=None,
+        ax=None,
+    ):
         """Plot Precision-Recall curve with confidence intervals"""
         data_names = df[
             dataset
@@ -284,19 +301,19 @@ def _(
                 y=precision,
                 lw=2,
                 label=f"{data_name} (AUC = {prc_auc:.2f} [{prc_lower:.2f}–{prc_upper:.2f}])",
-                ax=ax
+                ax=ax,
             )
 
         # plt.hlines(
-            # pos_rate,
-            # 0,
-            # 1,
-            # colors="gray",
-            # linestyles="--",
-            # label=f"Baseline = {pos_rate:.3f}",
-            # ax=ax
+        # pos_rate,
+        # 0,
+        # 1,
+        # colors="gray",
+        # linestyles="--",
+        # label=f"Baseline = {pos_rate:.3f}",
+        # ax=ax
         # )
-        sns.lineplot(x=[0,1], y=[pos_rate, pos_rate], linestyle="--", ax=ax)
+        sns.lineplot(x=[0, 1], y=[pos_rate, pos_rate], linestyle="--", ax=ax)
 
         ax.set_xlim([0.0, 1.0])
         ax.set_ylim([0.0, 1.05])
@@ -306,15 +323,23 @@ def _(
 
         return ax
 
-
-    def run_test(column_name, data_dir, test_dataset, modality, modelname="sfcn"):
+    def run_test(
+        column_name,
+        data_dir,
+        test_dataset,
+        modality,
+        modelname="sfcn",
+        tensor_dir_dataset="mspaths2",
+    ):
         device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
         test_dataset = dataloader.BrainDataset(
             csv_file=abspath(
-                join(data_dir, test_dataset, "test", f"{column_name}.csv")
+                join(data_dir, test_dataset, f"{column_name}.csv")
             ),
             root_dir=abspath(
-                join(tensor_dir_test, "mspaths2", f"{modality}96_affine")
+                join(
+                    tensor_dir_test, tensor_dir_dataset, f"{modality}96_affine"
+                )
             ),
             column_name=column_name,
             num_rows=None,
@@ -372,7 +397,6 @@ def _(
         y_score = np.array(test_outputs_binary).astype(float)
 
         return eids, y_true, y_score
-
 
     df = pd.DataFrame()
     return plot_prc_curve, plot_roc_curve, run_test
@@ -698,7 +722,8 @@ def _(pat_df, plt, sns):
 
     # 2) Kruskal-Wallis H-Test (global)
     groups = [
-        pat_df.loc[pat_df["dataset"] == g, "age"].dropna().values for g in order
+        pat_df.loc[pat_df["dataset"] == g, "age"].dropna().values
+        for g in order
     ]
     kw_stat, kw_p = stats.kruskal(*groups)
 
@@ -867,7 +892,15 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    read T1w data
+    """)
+    return
+
+
+@app.cell(hide_code=True)
 def _(Path, columns, data_dir, pd, run_test):
     _outfile = Path(f"output_t1w.csv")
     if _outfile.exists():
@@ -878,7 +911,7 @@ def _(Path, columns, data_dir, pd, run_test):
         for _column_name in columns:
             # run_test should create and return y_test, y_score or write output.csv
             _eids, _y_test, _y_score = run_test(
-                _column_name, data_dir, "mspaths2/t1w", "t1w"
+                _column_name, data_dir, "mspaths2/t1w/test", "t1w"
             )
             # Save to CSV (using pandas for header and robust types)
             _df_current = pd.DataFrame(
@@ -904,34 +937,8 @@ def _(Path, columns, data_dir, pd, run_test):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## T1w - AUROCs (all 4 tasks)
+    read FLAIR data
     """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(df_t1w, plot_roc_curve, plt):
-    # Create Auroc Curves
-    plot_roc_curve(df_t1w)
-    plt.savefig(f"auroc_t1w_worst_progression_2z.svg")
-    plt.show()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## T1w - AUPRC (all 4 tasks)
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(df_t1w, plot_prc_curve, plt):
-    # Create PRC Curves
-    plot_prc_curve(df_t1w)
-    plt.savefig(f"prc_t1w_worst_progression_2z.svg")
-    plt.show()
     return
 
 
@@ -969,83 +976,39 @@ def _(Path, columns, data_dir, pd, run_test):
     return (df_flair,)
 
 
-@app.cell
-def _():
-    return
-
-
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## FLAIR -  AUROCs (all 4 tasks)
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(df_flair, plot_roc_curve, plt):
-    # Create Auroc Curves
-    plot_roc_curve(df_flair)
-    plt.savefig(f"auroc_flair_worst_progression_2z.svg")
-    plt.show()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## FLAIR - AUPRC (all 4 task
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(df_flair, plot_prc_curve, plt):
-    # Create PRC Curves
-    plot_prc_curve(df_flair)
-    plt.savefig(f"prc_flair_worst_progression_2z.svg")
-    plt.show()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    data: {"type": "error", "errorText": "'OpenAIModelProfile' object has no attribute 'supports_thinking'"}
-    """)
-    return
-
-
-@app.cell
 def _(df_flair, df_t1w, modalities, plot_prc_curve, plot_roc_curve, plt):
-    _fig, _axs = plt.subplots(3,3,figsize=(15, 15))
+    _fig, _axs = plt.subplots(3, 3, figsize=(16, 16))
 
-    _width_ratios = [0.3, 5, 5]
-    _height_ratios = [0.3, 5, 5]
+    _width_ratios = [1, 5, 5]
+    _height_ratios = [0.8, 5, 5]
 
     _gs = plt.GridSpec(
         figure=_fig,
-        ncols= 3,
-        nrows= 3,
+        ncols=3,
+        nrows=3,
         width_ratios=_width_ratios,
         height_ratios=_height_ratios,
-        wspace=0.15,  # Width space between plots (decrease this to reduce space)
-        hspace=0,  # Height space between plots
+        wspace=0.2,  # Width space between plots (decrease this to reduce space)
+        hspace=0.2,  # Height space between plots
     )
 
     plt.subplots_adjust(top=0.85, bottom=0.15, left=0.1, right=0.9, hspace=0)
 
+    for _row in range(3):
+        for _col in range(3):
+            _axs[_row, _col].axis("off")  # empty corner cell
 
-    _axs[0, 0].axis("off")  # empty corner cell
-
-
-
-
+    _axs = [
+        [_fig.add_subplot(_gs[_row, _col]) for _col in range(3)]
+        for _row in range(3)
+    ]
+    _axs[0][0].axis("off")  # empty corner cell
     # Tablehead
 
     for _col, _mod in enumerate(modalities, start=1):
-        _axs[0, _col].axis("off")
-        _axs[0, _col].text(
+        _axs[0][_col].axis("off")
+        _axs[0][_col].text(
             0.5,
             0.5,
             _mod,
@@ -1057,8 +1020,8 @@ def _(df_flair, df_t1w, modalities, plot_prc_curve, plot_roc_curve, plt):
 
     # Curve names
     for _row, _name in enumerate(["ROC", "PRC"], start=1):
-        _axs[_row, 0].axis("off")
-        _axs[_row, 0].text(
+        _axs[_row][0].axis("off")
+        _axs[_row][0].text(
             0.5,
             0.5,
             _name.upper(),
@@ -1069,14 +1032,14 @@ def _(df_flair, df_t1w, modalities, plot_prc_curve, plot_roc_curve, plt):
             rotation=90,
         )
 
-    _fig.add_subplot(plot_roc_curve(df_t1w,   ax=_axs[1,1], figure=_fig))
-    _fig.add_subplot(plot_prc_curve(df_t1w,   ax=_axs[2,1], figure=_fig))
-    _fig.add_subplot(plot_roc_curve(df_flair, ax=_axs[1,2], figure=_fig))
-    _fig.add_subplot(plot_prc_curve(df_flair, ax=_axs[2,2], figure=_fig))
+    _fig.add_subplot(plot_roc_curve(df_t1w, ax=_axs[1][1], figure=_fig))
+    _fig.add_subplot(plot_prc_curve(df_t1w, ax=_axs[2][1], figure=_fig))
+    _fig.add_subplot(plot_roc_curve(df_flair, ax=_axs[1][2], figure=_fig))
+    _fig.add_subplot(plot_prc_curve(df_flair, ax=_axs[2][2], figure=_fig))
 
-    for _x in [1,2]:
-        for _y in [1,2]:
-            _axs[_x,_y].set_title('')
+    for _x in [1, 2]:
+        for _y in [1, 2]:
+            _axs[_x][_y].set_title("")
 
     plt.tight_layout()
     plt.savefig("auroc_prc.svg")
@@ -1085,22 +1048,208 @@ def _(df_flair, df_t1w, modalities, plot_prc_curve, plot_roc_curve, plt):
     return
 
 
-@app.cell
-def _():
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Auc and PRC for trainig Dataset
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(Path, columns, data_dir, pd, run_test):
+    _outfile = Path(f"output_training_t1w.csv")
+    if _outfile.exists():
+        df_training_t1w = pd.read_csv(_outfile)
+    else:
+        df_training_t1w = pd.DataFrame()
+
+        for _column_name in columns:
+            # run_test should create and return y_test, y_score or write output.csv
+            _eids, _y_test, _y_score = run_test(
+                _column_name,
+                data_dir,
+                "mspaths/t1w/train",
+                "t1w",
+                tensor_dir_dataset="mspaths",
+            )
+            # Save to CSV (using pandas for header and robust types)
+            _df_current = pd.DataFrame(
+                {
+                    "eid": _eids,
+                    "y_test": _y_test,
+                    "y_score": _y_score,
+                    "name": _column_name,
+                }
+            )
+
+            df_training_t1w = pd.concat(
+                (df_training_t1w, _df_current), ignore_index=True
+            )
+            df_training_t1w.to_csv(_outfile, index=False)
+
+    # Rename Entries to human readable format
+    df_training_t1w.loc[df_training_t1w.name.str.contains("_pst"), "name"] = (
+        "PST"
+    )
+    df_training_t1w.loc[df_training_t1w.name.str.contains("_cst"), "name"] = (
+        "CST"
+    )
+    df_training_t1w.loc[df_training_t1w.name.str.contains("_wst"), "name"] = (
+        "WST"
+    )
+    df_training_t1w.loc[df_training_t1w.name.str.contains("_mdt"), "name"] = (
+        "MDT"
+    )
+    return (df_training_t1w,)
+
+
+@app.cell(hide_code=True)
+def _(Path, columns, data_dir, pd, run_test):
+    _outfile = Path(f"output_training_flair.csv")
+    if _outfile.exists():
+        df_training_flair = pd.read_csv(_outfile)
+    else:
+        df_training_flair = pd.DataFrame()
+
+        for _column_name in columns:
+            # run_test should create and return y_test, y_score or write output.csv
+            _eids, _y_test, _y_score = run_test(
+                _column_name,
+                data_dir,
+                "mspaths/flair/train",
+                "flair",
+                tensor_dir_dataset="mspaths",
+            )
+            # Save to CSV (using pandas for header and robust types)
+            _df_current = pd.DataFrame(
+                {
+                    "eid": _eids,
+                    "y_test": _y_test,
+                    "y_score": _y_score,
+                    "name": _column_name,
+                }
+            )
+
+            df_training_flair = pd.concat(
+                (df_training_flair, _df_current), ignore_index=True
+            )
+            df_training_flair.to_csv(_outfile, index=False)
+
+    # Rename Entries to human readable format
+    df_training_flair.loc[
+        df_training_flair.name.str.contains("_pst"), "name"
+    ] = "PST"
+    df_training_flair.loc[
+        df_training_flair.name.str.contains("_cst"), "name"
+    ] = "CST"
+    df_training_flair.loc[
+        df_training_flair.name.str.contains("_wst"), "name"
+    ] = "WST"
+    df_training_flair.loc[
+        df_training_flair.name.str.contains("_mdt"), "name"
+    ] = "MDT"
+    return (df_training_flair,)
+
+
+@app.cell(hide_code=True)
+def _(
+    df_training_flair,
+    df_training_t1w,
+    modalities,
+    plot_prc_curve,
+    plot_roc_curve,
+    plt,
+):
+    _fig, _axs = plt.subplots(3, 3, figsize=(16, 16))
+
+    _width_ratios = [1, 5, 5]
+    _height_ratios = [0.8, 5, 5]
+
+    _gs = plt.GridSpec(
+        figure=_fig,
+        ncols=3,
+        nrows=3,
+        width_ratios=_width_ratios,
+        height_ratios=_height_ratios,
+        wspace=0.2,  # Width space between plots (decrease this to reduce space)
+        hspace=0.2,  # Height space between plots
+    )
+
+    plt.subplots_adjust(top=0.85, bottom=0.15, left=0.1, right=0.9, hspace=0)
+
+    for _row in range(3):
+        for _col in range(3):
+            _axs[_row, _col].axis("off")  # empty corner cell
+
+    _axs = [
+        [_fig.add_subplot(_gs[_row, _col]) for _col in range(3)]
+        for _row in range(3)
+    ]
+    _axs[0][0].axis("off")  # empty corner cell
+    # Tablehead
+
+    for _col, _mod in enumerate(modalities, start=1):
+        _axs[0][_col].axis("off")
+        _axs[0][_col].text(
+            0.5,
+            0.5,
+            _mod,
+            ha="center",
+            va="center",
+            color="black",
+            fontsize=30,
+        )
+
+    # Curve names
+    for _row, _name in enumerate(["ROC", "PRC"], start=1):
+        _axs[_row][0].axis("off")
+        _axs[_row][0].text(
+            0.5,
+            0.5,
+            _name.upper(),
+            ha="right",
+            va="center",
+            color="black",
+            fontsize=30,
+            rotation=90,
+        )
+
+    _fig.add_subplot(
+        plot_roc_curve(df_training_t1w, ax=_axs[1][1], figure=_fig)
+    )
+    _fig.add_subplot(
+        plot_prc_curve(df_training_t1w, ax=_axs[2][1], figure=_fig)
+    )
+    _fig.add_subplot(
+        plot_roc_curve(df_training_flair, ax=_axs[1][2], figure=_fig)
+    )
+    _fig.add_subplot(
+        plot_prc_curve(df_training_flair, ax=_axs[2][2], figure=_fig)
+    )
+
+    for _x in [1, 2]:
+        for _y in [1, 2]:
+            _axs[_x][_y].set_title("")
+
+    plt.tight_layout()
+    plt.savefig("auroc_prc_training.svg")
+
+    plt.show()
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Figure 3: Progression Curves
+    ## Figure 3: Progression Curves
 
-    ## Kaplan Meier Curves for T1w
+    Kaplan Meier Curves for T1w
     """)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     KaplanMeierFitter,
     columns,
@@ -1147,7 +1296,9 @@ def _(
         # Method 4: F1 Score
         from sklearn.metrics import precision_recall_curve
 
-        precision, recall, pr_thresholds = precision_recall_curve(y_true, y_score)
+        precision, recall, pr_thresholds = precision_recall_curve(
+            y_true, y_score
+        )
         f1_scores = np.zeros(len(precision))
         for i in range(len(precision)):
             if precision[i] + recall[i] > 0:
@@ -1179,7 +1330,6 @@ def _(
             "f1_score": f1_scores[f1_idx],
         }
 
-
     def plot_kaplan_meier(
         time_to_event,
         event_observed,
@@ -1187,6 +1337,7 @@ def _(
         test_cohort,
         threshold,
         save_path=None,
+        ax=None,
     ):
         """
         Plot Kaplan-Meier curve stratified by DL model predictions with Hazard Ratio.
@@ -1223,7 +1374,8 @@ def _(
         kmf = KaplanMeierFitter()
 
         # Create figure
-        fig, ax = plt.subplots(figsize=(10, 7))
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(10, 7))
 
         # Plot KM curves for each risk group
         colors = ["#1671bc", "#c11b0f"]  # Blue for low risk, red for high risk
@@ -1239,7 +1391,11 @@ def _(
             kmf.fit(df.loc[mask, "time"], df.loc[mask, "event"], label=label)
 
             kmf.plot_survival_function(
-                ax=ax, ci_show=True, color=colors[idx], linewidth=2.5, alpha=0.5
+                ax=ax,
+                ci_show=True,
+                color=colors[idx],
+                linewidth=2.5,
+                alpha=0.5,
             )
 
         # Perform log-rank test
@@ -1263,7 +1419,7 @@ def _(
         cph.fit(df_cox, duration_col="T", event_col="E", strata=None)
 
         hr = cph.hazard_ratios_.iloc[0]
-        hr_ci = cph.confidence_intervals_.iloc[0]
+        hr_ci = cph.confidence_intervals_.iloc[0].to_list()
 
         # Prepare text for the plot
         textstr = (
@@ -1281,16 +1437,18 @@ def _(
             0.02,
             textstr,
             transform=ax.transAxes,
-            fontsize=12,
+            fontsize=16,
             verticalalignment="bottom",
             bbox=props,
         )
 
         # Add labels and title
         ax.set_xlabel("Time (days)", fontsize=14, fontweight="bold")
-        ax.set_ylabel("Progression-Free Survival", fontsize=14, fontweight="bold")
+        ax.set_ylabel(
+            "Progression-Free Survival", fontsize=14, fontweight="bold"
+        )
         ax.set_title(
-            f"Kaplan-Meier Curve on {test_cohort}",
+            f"{test_cohort}",
             fontsize=16,
             fontweight="bold",
             pad=20,
@@ -1321,20 +1479,25 @@ def _(
             "hazard_ratio_95ci_upper": hr_ci[1],
         }
 
-        return km_metrics
-
+        return km_metrics, ax
 
     def kmplots(df, name):
-        col_mapping = {"_pst": "PST", "_cst": "CST", "_wst": "WST", "_mdt": "MDT"}
+        col_mapping = {
+            "_pst": "PST",
+            "_cst": "CST",
+            "_wst": "WST",
+            "_mdt": "MDT",
+        }
+        figlist = []
         for _column in columns:
             _data_df = pd.read_csv(
                 join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv")
             )
-            _test_name = _column.replace("worst_progressor_2ycutoff_", "").replace(
-                "_2z", ""
-            )
+            _test_name = _column.replace(
+                "worst_progressor_2ycutoff_", ""
+            ).replace("_2z", "")
             _data_df = _data_df.query(f"not(time_{_test_name} <= 0)")
-
+            print(_test_name)
             shortname = next(
                 (v for k, v in col_mapping.items() if k in _column), None
             )
@@ -1350,62 +1513,365 @@ def _(
             prediction_scores = km_data["y_score"].values
             km_threshold = thresholds_dict["youden_threshold"]
             km_path = join(f"{shortname}_{name}.svg")
-            km_metrics = plot_kaplan_meier(
+            km_metrics, ax = plot_kaplan_meier(
                 time_to_event,
                 event_observed,
                 prediction_scores,
-                f"{shortname} - {name}",
+                f"{shortname}",
                 threshold=km_threshold,
                 save_path=km_path,
             )
+            figlist.append(ax)
 
-            plt.show()
+            # plt.show()
+        return figlist
 
-    return (kmplots,)
+    return find_optimal_thresholds, kmplots, plot_kaplan_meier
 
 
 @app.cell
-def _(columns, data_dir, join, pd):
-    for _column in columns:
-        _data_df = pd.read_csv(
-            join(data_dir, "mspaths2", "t1w", "test", f"{_column}.csv")
+def _(df_flair, df_t1w, kmplots, matplotlib, plt):
+    _t1figs = kmplots(df_t1w, "T1w")
+    _flairfigs = kmplots(df_flair, "FLAIR")
+    _n_images = len(_t1figs)
+
+    # def display_axes_grid(_t1figs, _flairfigs):
+    #     """
+    #     Display two lists of matplotlib axes in a table-like grid by copying their contents.
+
+    #     - _t1figs: List of matplotlib axes (left column)
+    #     - _flairfigs: List of matplotlib axes (right column)
+    #     """
+    #     # Ensure both lists have the same length
+    #     assert len(_t1figs) == len(_flairfigs), (
+    #         "Both lists must have the same length"
+    #     )
+
+    #     # Create a figure with a grid layout
+    #     fig = plt.figure(
+    #         figsize=(10, 5 * len(_t1figs))
+    #     )  # Adjust figsize as needed
+    #     gs = plt.GridSpec(len(_t1figs), 2, width_ratios=[1, 1])  # 2 columns
+
+    #     # Iterate through each pair of axes and copy their contents to the grid
+    #     for i, (t1_ax, flair_ax) in enumerate(zip(_t1figs, _flairfigs)):
+    #         # Copy T1 plot to the left column
+    #         t1_new_ax = fig.add_subplot(gs[i, 0])
+    #         t1_new_ax.set_title("")
+    #         for line in t1_ax.get_lines():
+    #             t1_new_ax.plot(
+    #                 line.get_xdata(),
+    #                 line.get_ydata(),
+    #                 color=line.get_color(),
+    #                 label=line.get_label(),
+    #             )
+    #         t1_new_ax.legend()
+
+    #         # Copy FLAIR plot to the right column
+    #         flair_new_ax = fig.add_subplot(gs[i, 1])
+    #         flair_new_ax.set_title(f"FLAIR Image {i + 1}")
+    #         for line in flair_ax.get_lines():
+    #             flair_new_ax.plot(
+    #                 line.get_xdata(),
+    #                 line.get_ydata(),
+    #                 color=line.get_color(),
+    #                 label=line.get_label(),
+    #             )
+    #         flair_new_ax.legend()
+
+    #     plt.tight_layout()
+    #     plt.show()
+
+    def display_axes_grid(_t1figs, _flairfigs):
+        """
+        Display two lists of matplotlib axes (e.g., Kaplan-Meier plots) in a grid layout,
+        preserving confidence bands, text annotations, legends, and other plot elements.
+
+        Parameters:
+        - _t1figs: List of matplotlib axes (left column, T1w)
+        - _flairfigs: List of matplotlib axes (right column, FLAIR)
+        """
+        assert len(_t1figs) == len(_flairfigs), (
+            "Both lists must have the same length"
         )
 
-        print(_data_df)
-    return
+        # First, find consistent limits across ALL original axes
+        all_axes = _t1figs + _flairfigs
+        global_xlim = [float('inf'), float('-inf')]
+        global_ylim = [float('inf'), float('-inf')]
+
+        for ax in all_axes:
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
+            global_xlim[0] = min(global_xlim[0], xlim[0])
+            global_xlim[1] = max(global_xlim[1], xlim[1])
+            global_ylim[0] = min(global_ylim[0], ylim[0])
+            global_ylim[1] = max(global_ylim[1], ylim[1])
 
 
-@app.cell
-def _(df_t1w):
-    df_t1w
-    return
+        # Create figure with grid layout
+        fig = plt.figure(figsize=(20, 10 * len(_t1figs)))
+        gs = plt.GridSpec(
+            len(_t1figs) + 1, 2 + 1, width_ratios=[0.08, 1, 1], hspace=0.2, wspace=0.2, height_ratios=[0.05,1,1,1,1]
+        )
+
+        for i, (t1_ax, flair_ax) in enumerate(zip(_t1figs, _flairfigs)):
+            # --- Row Label (Column 0) ---
+            ax_row_label = fig.add_subplot(gs[i + 1, 0])
+            ax_row_label.axis('off')
+            ax_row_label.text(
+                0.5, 0.5, t1_ax.title.get_text(), 
+                ha='right', va='center', 
+                fontsize=24, fontweight='bold',
+                rotation=90
+            )
+
+    
+            # --- Left: T1w plot ---
+            t1_new_ax = fig.add_subplot(gs[i+1, 1])
+            # t1_new_ax.set_title(f"T1w Image {i + 1}", fontsize=10, pad=5)
+
+           # Set CONSISTENT limits for ALL subfigures
+            t1_new_ax.set_xlim(global_xlim)
+            t1_new_ax.set_ylim(global_ylim)
+            t1_new_ax.autoscale(enable=False)
+    
+            # Copy all lines
+            for line in t1_ax.get_lines():
+                t1_new_ax.plot(
+                    line.get_xdata(),
+                    line.get_ydata(),
+                    color=line.get_color(),
+                    label=line.get_label(),
+                    linewidth=line.get_linewidth(),
+                    linestyle=line.get_linestyle(),
+                )
+
+            # Copy confidence bands (PolyCollection) by cloning data
+            for collection in t1_ax.collections:
+                if isinstance(
+                    collection, matplotlib.collections.PolyCollection
+                ):
+                    # Extract vertices from each Path in the collection
+                    vertices_list = []
+                    for path in collection.get_paths():
+                        # Convert Path to vertex array (x, y coordinates)
+                        vertices_list.append(
+                            path.vertices
+                        )  # This gives a (N, 2) array
+
+                    # Create new PolyCollection with vertex arrays
+                    new_collection = matplotlib.collections.PolyCollection(
+                        vertices_list,
+                        facecolors=collection.get_facecolor(),
+                        edgecolors=collection.get_edgecolor(),
+                        alpha=collection.get_alpha(),
+                        linewidths=collection.get_linewidths(),
+                    )
+                    t1_new_ax.add_collection(new_collection)
+
+            # Copy text annotations WITH bbox properties
+            for text in t1_ax.texts:
+                bbox_props = text.get_bbox_patch()
+                bbox_dict = {}
+                if bbox_props is not None:
+                    bbox_dict = {
+                        "boxstyle": bbox_props.get_boxstyle(),
+                        "facecolor": bbox_props.get_facecolor(),
+                        "edgecolor": bbox_props.get_edgecolor(),
+                        "linewidth": bbox_props.get_linewidth(),
+                        "alpha": bbox_props.get_alpha(),
+                    }
+
+                t1_new_ax.text(
+                    text.get_position()[0],
+                    text.get_position()[1],
+                    text.get_text(),
+                    fontsize=text.get_fontsize(),
+                    color=text.get_color(),
+                    ha=text.get_ha(),
+                    va=text.get_va(),
+                    bbox=bbox_dict if bbox_dict else None,
+                )
+
+            # Copy legend
+            if t1_ax.get_legend() is not None:
+                t1_new_ax.legend(loc="upper right")
+
+            # --- Right: FLAIR plot ---
+            flair_new_ax = fig.add_subplot(gs[i+1, 2])
+            # flair_new_ax.set_title(f"FLAIR Image {i + 1}", fontsize=10, pad=5)
+
+            # Set CONSISTENT limits for ALL subfigures
+            flair_new_ax.set_xlim(global_xlim)
+            flair_new_ax.set_ylim(global_ylim)
+            flair_new_ax.autoscale(enable=False)
 
 
-@app.cell
-def _(df_t1w, kmplots):
-    kmplots(df_t1w, "T1w")
-    return
+    
+            # Copy lines
+            for line in flair_ax.get_lines():
+                flair_new_ax.plot(
+                    line.get_xdata(),
+                    line.get_ydata(),
+                    color=line.get_color(),
+                    label=line.get_label(),
+                    linewidth=line.get_linewidth(),
+                    linestyle=line.get_linestyle(),
+                )
+
+            # Copy confidence bands
+            for collection in flair_ax.collections:
+                if isinstance(
+                    collection, matplotlib.collections.PolyCollection
+                ):
+                    vertices_list = []
+                    for path in collection.get_paths():
+                        vertices_list.append(path.vertices)
+                    new_collection = matplotlib.collections.PolyCollection(
+                        vertices_list,
+                        facecolors=collection.get_facecolor(),
+                        edgecolors=collection.get_edgecolor(),
+                        alpha=collection.get_alpha(),
+                        linewidths=collection.get_linewidths(),
+                    )
+                    flair_new_ax.add_collection(new_collection)
+
+            # Copy text annotations WITH bbox properties
+            for text in flair_ax.texts:
+                bbox_props = text.get_bbox_patch()
+                bbox_dict = {}
+                if bbox_props is not None:
+                    bbox_dict = {
+                        "boxstyle": bbox_props.get_boxstyle(),
+                        "facecolor": bbox_props.get_facecolor(),
+                        "edgecolor": bbox_props.get_edgecolor(),
+                        "linewidth": bbox_props.get_linewidth(),
+                        "alpha": bbox_props.get_alpha(),
+                    }
+
+                flair_new_ax.text(
+                    text.get_position()[0],
+                    text.get_position()[1],
+                    text.get_text(),
+                    fontsize=text.get_fontsize(),
+                    color=text.get_color(),
+                    ha=text.get_ha(),
+                    va=text.get_va(),
+                    bbox=bbox_dict if bbox_dict else None,
+                )
+            # Copy legend
+            if flair_ax.get_legend() is not None:
+                flair_new_ax.legend(loc="upper right")
+
+        # T1w Header
+        ax_header_t1 = fig.add_subplot(gs[0, 1])
+        ax_header_t1.axis('off')
+        ax_header_t1.text(
+            0.5, 0.3, "MPRAGE", 
+            ha='center', va='center', 
+            fontsize=24, fontweight='bold'
+        )
+
+        # FLAIR Header
+        ax_header_flair = fig.add_subplot(gs[0, 2])
+        ax_header_flair.axis('off')
+        ax_header_flair.text(
+            0.5, 0.3, "FLAIR", 
+            ha='center', va='center', 
+            fontsize=24, fontweight='bold'
+        )
+
+
+
+
+
+        # plt.tight_layout()
+
+    display_axes_grid(_t1figs, _flairfigs)
+
+    plt.savefig("kmplots_all_dataset-test.svg")
+    plt.savefig("kmplots_all_dataset-test.png")
+    plt.show()
+    return (display_axes_grid,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Kaplan Meier Curves for FLAIR
+    ### Create Kaplan Meyers for Traing Dataset as well
     """)
     return
 
 
 @app.cell
-def _(df_flair, kmplots):
-    _ax = kmplots(df_flair, "FLAIR")
-    return
+def _(columns, data_dir, find_optimal_thresholds, join, pd, plot_kaplan_meier):
+    def kmplots_training(df, name):
+        col_mapping = {
+            "_pst": "PST",
+            "_cst": "CST",
+            "_wst": "WST",
+            "_mdt": "MDT",
+        }
+        figlist = []
+        for _column in columns:
+            _data_df = pd.read_csv(
+                join(data_dir, "mspaths", "t1w", "train", f"{_column}.csv")
+            )
+            _test_name = _column.replace(
+                "worst_progressor_2ycutoff_", ""
+            ).replace("_2z", "")
+            _data_df = _data_df.query(f"not(time_{_test_name} <= 0)")
+            print(_test_name)
+            shortname = next(
+                (v for k, v in col_mapping.items() if k in _column), None
+            )
+            km_data = _data_df.merge(df.query(f'name == "{shortname}"'))
+            # km_data.time.fillna(0, inplace=True)
+            km_data.dropna(subset=f"time_{_test_name}", inplace=True)
+            km_data.to_csv(join("data", f"kmdata_{_column}.csv"), index=False)
+            thresholds_dict = find_optimal_thresholds(
+                km_data["y_test"].values, km_data["y_score"].values
+            )
+            time_to_event = km_data[f"time_{_test_name}"].values
+            event_observed = km_data["y_test"].values
+            prediction_scores = km_data["y_score"].values
+            km_threshold = thresholds_dict["youden_threshold"]
+            km_path = join(f"{shortname}_{name}.svg")
+            km_metrics, ax = plot_kaplan_meier(
+                time_to_event,
+                event_observed,
+                prediction_scores,
+                f"{shortname}",
+                threshold=km_threshold,
+                save_path=km_path,
+            )
+            ax.set_ylim(ymin=0)
+            figlist.append(ax)
+
+            # plt.show()
+        return figlist
+
+    return (kmplots_training,)
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    # Figure 4: Heatmaps
-    """)
+@app.cell
+def _(
+    df_training_flair,
+    df_training_t1w,
+    display_axes_grid,
+    kmplots_training,
+    plt,
+):
+    _t1figs = kmplots_training( df_training_t1w, "T1w")
+    _flairfigs = kmplots_training(df_training_flair, "FLAIR")
+    _n_images = len(_t1figs)
+
+    display_axes_grid(_t1figs, _flairfigs)
+
+    plt.savefig("kmplots_all_dataset-training.svg")
+    plt.savefig("kmplots_all_dataset-training.png")
+    plt.show()
     return
 
 
@@ -1467,10 +1933,11 @@ def _(attention_maps_df):
 
         return results
 
-
     # Get all region columns (excluding 'modality' and 'test')
     region_columns = [
-        col for col in attention_maps_df.columns if col not in ["modality", "test"]
+        col
+        for col in attention_maps_df.columns
+        if col not in ["modality", "test"]
     ]
 
     # Get top 100 per region
@@ -1548,7 +2015,6 @@ def _(
         # extract eid with highest prob for true positive progressors
         best_ids[_col] = _true_df.eid.to_list()[0]
 
-
     plt.rcParams.update(
         {
             # Figure / saved‑file background
@@ -1567,7 +2033,6 @@ def _(
             "grid.linewidth": 0.5,
         }
     )
-
 
     _figure_cols = modalities
     _figure_rows = test_names
@@ -1609,7 +2074,6 @@ def _(
             )  # Remove ticks
 
     _figure.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
-
 
     imagelist = {}
     for _col in columns:
@@ -1672,9 +2136,10 @@ def _(
                 vmax=_vmax,
                 annotate=False,
                 dim=1.5,
-                axes=_ax[columns.index(_col) + 1, modalities.index(_modality) + 1],
+                axes=_ax[
+                    columns.index(_col) + 1, modalities.index(_modality) + 1
+                ],
             )
-
 
     _ax[0, 0].axis("off")  # empty corner cell
 
@@ -1755,10 +2220,6 @@ def _(mo):
 def _(pd, plt, sns, spidy, test_order):
     ##### FLAIR
 
-    sns.set_style("whitegrid")
-    sns.set_theme(style="whitegrid", rc=None)
-
-    sns.set_context("notebook", font_scale=1.75)
     plt.rcParams.update(
         {
             # Figure / saved‑file background
@@ -1826,9 +2287,6 @@ def _(pd, plt, sns, spidy, test_order):
         id_vars=["test"], var_name="region", value_name="value"
     )
 
-
-
-
     regions_long_df = regions_long_df.rename(columns={"test": "dataset"})
 
     _ax = spidy.spiderplot(
@@ -1852,9 +2310,12 @@ def _(pd, plt, sns, spidy, test_order):
     for _modality in ["t1w", "flair"]:
         _mod_region_df = pd.read_csv(f"im96_{_modality}.csv")
         _mod_region_df["test"] = region_df.test.str.upper()
-        _mod_regions_long_df = _mod_region_df.melt(id_vars=["test"], var_name="region", value_name="value")
-        _mod_regions_long_df["modality"] = "T1w" if _modality == "t1w" else "FLAIR"
-
+        _mod_regions_long_df = _mod_region_df.melt(
+            id_vars=["test"], var_name="region", value_name="value"
+        )
+        _mod_regions_long_df["modality"] = (
+            "T1w" if _modality == "t1w" else "FLAIR"
+        )
 
         regions_long_df = pd.concat((regions_long_df, _mod_regions_long_df))
 
@@ -1862,10 +2323,9 @@ def _(pd, plt, sns, spidy, test_order):
 
     print(regions_long_df)
 
-
     grid = sns.FacetGrid(
         regions_long_df,
-        #x='region',
+        # x='region',
         row="dataset",
         col="modality",
         hue="dataset",
@@ -1881,28 +2341,32 @@ def _(pd, plt, sns, spidy, test_order):
 
     # Rotate x-axis tick labels
     for _ax in grid.axes.flat:
-        _ax.tick_params(axis='x', rotation=60, labelrotation_mode="xtick")
+        _ax.tick_params(axis="x", rotation=60, labelrotation_mode="xtick")
         _ax.set_xlabel("")
 
-
     for _i, _ax in enumerate(grid.axes):
-        _bbox = _ax[0].get_position()  # Get subplot position in figure coordinates
+        _bbox = _ax[
+            0
+        ].get_position()  # Get subplot position in figure coordinates
         grid.fig.text(
-            _bbox.x0 - 0.1,         # 2.5% of figure width to the left
+            _bbox.x0 - 0.1,  # 2.5% of figure width to the left
             _bbox.y0 + _bbox.height / 2,  # Vertically centered
-            grid.row_names[_i],       # Row title
-            ha='right', va='center', rotation=90, fontsize=20, weight=700
+            grid.row_names[_i],  # Row title
+            ha="right",
+            va="center",
+            rotation=90,
+            fontsize=20,
+            weight=700,
         )
         for _j, _axcol in enumerate(_ax):
             if _i == 0:
-
                 _axcol.set_title(grid.col_names[_j], fontsize=20, weight=700)
 
             else:
                 _axcol.set_title("")
 
-    plt.savefig('regional_attention.svg')
-    plt.savefig('regional_attention.png')
+    plt.savefig("regional_attention.svg")
+    plt.savefig("regional_attention.png")
 
     plt.show()
     return region_df, regions_long_df
@@ -1931,21 +2395,22 @@ def _(mo):
 @app.cell
 def _(pd, plt, sns, test_order):
     # read region means
-    fsregions_df = pd.read_csv("region_means.tsv", 
-                                  sep="\t", 
-                                  dtype={'subject': str})
-    fsregions_df['neurotes'] = fsregions_df.neurotes.str.upper() 
-
+    fsregions_df = pd.read_csv(
+        "region_means.tsv", sep="\t", dtype={"subject": str}
+    )
+    fsregions_df["neurotes"] = fsregions_df.neurotes.str.upper()
 
     # We don't need to aggregate the rows it's easier if we put together stuff from the original table
 
-    fsregions_molten_df = fsregions_df.groupby(by=["neurotes", "modality", "region"]).aggregate({"mean_intensity": ["mean","std"] })
+    fsregions_molten_df = fsregions_df.groupby(
+        by=["neurotes", "modality", "region"]
+    ).aggregate({"mean_intensity": ["mean", "std"]})
     # fsregions_molten_df.reset_index(inplace=True)
     print(fsregions_molten_df)
 
     fsgrid = sns.FacetGrid(
         fsregions_df,
-        #x='region',
+        # x='region',
         row="neurotes",
         col="modality",
         hue="neurotes",
@@ -1955,43 +2420,61 @@ def _(pd, plt, sns, test_order):
         height=4,
         aspect=1.5,
     )
-    fsgrid.map_dataframe(sns.barplot, "region", "mean_intensity")
+    fsgrid.map_dataframe(
+        sns.barplot, "region", "mean_intensity", errorbar=("ci", 95)
+    )
     fsgrid.set_titles(row_template="", col_template="{col_name}")
     fsgrid.set_axis_labels("")
 
-
-
-
     # Rotate x-axis tick labels
     for _ax in fsgrid.axes.flat:
-        _ax.tick_params(axis='x', rotation=60, labelrotation_mode="xtick")
+        _ax.tick_params(axis="x", rotation=60, labelrotation_mode="xtick")
         _ax.set_xlabel("")
         _ax.set_ylabel("")
 
-
     for _i, _ax in enumerate(fsgrid.axes):
-        _bbox = _ax[0].get_position()  # Get subplot position in figure coordinates
+        _bbox = _ax[
+            0
+        ].get_position()  # Get subplot position in figure coordinates
         fsgrid.fig.text(
-            _bbox.x0 - 0.1,         # 2.5% of figure width to the left
+            _bbox.x0 - 0.1,  # 2.5% of figure width to the left
             _bbox.y0 + _bbox.height / 2,  # Vertically centered
-            fsgrid.row_names[_i],       # Row title
-            ha='right', va='center', rotation=90, fontsize=20, weight=700
+            fsgrid.row_names[_i],  # Row title
+            ha="right",
+            va="center",
+            rotation=90,
+            fontsize=20,
+            weight=700,
         )
         for _j, _axcol in enumerate(_ax):
             if _i == 0:
-                fsgrid.col_names[_j] = "MPRAGE" if fsgrid.col_names[_j].lower() == "t1w" else fsgrid.col_names[_j]
-                fsgrid.col_names[_j] = "FLAIR" if fsgrid.col_names[_j].lower() == "flair" else fsgrid.col_names[_j]
+                fsgrid.col_names[_j] = (
+                    "MPRAGE"
+                    if fsgrid.col_names[_j].lower() == "t1w"
+                    else fsgrid.col_names[_j]
+                )
+                fsgrid.col_names[_j] = (
+                    "FLAIR"
+                    if fsgrid.col_names[_j].lower() == "flair"
+                    else fsgrid.col_names[_j]
+                )
 
                 _axcol.set_title(fsgrid.col_names[_j], fontsize=20, weight=700)
 
             else:
                 _axcol.set_title("")
 
-    plt.savefig('regional_attention.svg')
-    plt.savefig('regional_attention.png')
+    plt.savefig("regional_attention.svg")
+    plt.savefig("regional_attention.png")
 
     plt.show()
-    return (fsregions_df,)
+    return fsregions_df, fsregions_molten_df
+
+
+@app.cell
+def _(fsregions_molten_df):
+    fsregions_molten_df
+    return
 
 
 @app.cell
@@ -2012,45 +2495,73 @@ def _(mo):
 def _(columns, evaluations_dir, join, pd, plt, sns, test_order):
     cms_df = pd.DataFrame()
 
-
     for _modality in ["t1w", "flair"]:
         for _colname in columns:
-            _df = pd.read_csv(join(evaluations_dir, "metrics", "sfcn", "test", "mspaths2", _modality, f"{_colname}_e1000_b16_im96.csv"))
+            _df = pd.read_csv(
+                join(
+                    evaluations_dir,
+                    "metrics",
+                    "sfcn",
+                    "test",
+                    "mspaths2",
+                    _modality,
+                    f"{_colname}_e1000_b16_im96.csv",
+                )
+            )
 
-            _cm = _df[['tn', 'fp', 'fn', 'tp']]
-            _cm['modality'] = _modality
-            _cm['neurotest'] = _colname.split('_')[3].upper()
+            _cm = _df[["tn", "fp", "fn", "tp"]]
+            _cm["modality"] = _modality
+            _cm["neurotest"] = _colname.split("_")[3].upper()
             cms_df = pd.concat((cms_df, _cm), ignore_index=True)
 
     rows = []
     for _, r in cms_df.iterrows():
-        rows.append({
-            "Predicted": "Positive", "True Label": "Positive", "Count": r["tp"],
-            "modality": r["modality"], "neurotest": r["neurotest"],
-        })
-        rows.append({
-            "Predicted": "Positive", "True Label": "Negative", "Count": r["fp"],
-            "modality": r["modality"], "neurotest": r["neurotest"],
-        })
-        rows.append({
-            "Predicted": "Negative", "True Label": "Positive", "Count": r["fn"],
-            "modality": r["modality"], "neurotest": r["neurotest"],
-        })
-        rows.append({
-            "Predicted": "Negative", "True Label": "Negative", "Count": r["tn"],
-            "modality": r["modality"], "neurotest": r["neurotest"],
-        })
+        rows.append(
+            {
+                "Predicted": "Positive",
+                "True Label": "Positive",
+                "Count": r["tp"],
+                "modality": r["modality"],
+                "neurotest": r["neurotest"],
+            }
+        )
+        rows.append(
+            {
+                "Predicted": "Positive",
+                "True Label": "Negative",
+                "Count": r["fp"],
+                "modality": r["modality"],
+                "neurotest": r["neurotest"],
+            }
+        )
+        rows.append(
+            {
+                "Predicted": "Negative",
+                "True Label": "Positive",
+                "Count": r["fn"],
+                "modality": r["modality"],
+                "neurotest": r["neurotest"],
+            }
+        )
+        rows.append(
+            {
+                "Predicted": "Negative",
+                "True Label": "Negative",
+                "Count": r["tn"],
+                "modality": r["modality"],
+                "neurotest": r["neurotest"],
+            }
+        )
 
     cm_long = pd.DataFrame(rows)
 
     # Reihenfolge der Klassen fixieren
-    cat_order = ["Negative", "Positive"]
+    _cat_order = ["Negative", "Positive"]
 
-
-    g = sns.FacetGrid(
+    _g = sns.FacetGrid(
         cm_long,
-        col="modality",          # Spalten = Modalities
-        row="neurotest",         # Zeilen = Neurotests
+        col="modality",  # Spalten = Modalities
+        row="neurotest",  # Zeilen = Neurotests
         row_order=test_order,
         margin_titles=True,
         despine=True,
@@ -2058,7 +2569,6 @@ def _(columns, evaluations_dir, join, pd, plt, sns, test_order):
         sharey=True,
         height=4,
         aspect=1.5,
-    
     )
 
     # ── 3. Heatmap auf jedes Facet mappen ──
@@ -2070,7 +2580,9 @@ def _(columns, evaluations_dir, join, pd, plt, sns, test_order):
             fill_value=0,
         )
         # Sicherstellen, dass beide Achsen beide Klassen enthalten
-        pivot = pivot.reindex(index=cat_order, columns=cat_order, fill_value=0)
+        pivot = pivot.reindex(
+            index=_cat_order, columns=_cat_order, fill_value=0
+        )
         sns.heatmap(
             pivot,
             annot=True,
@@ -2080,50 +2592,224 @@ def _(columns, evaluations_dir, join, pd, plt, sns, test_order):
             square=True,
             linewidths=0.5,
             linecolor="gray",
-            **kwargs
+            **kwargs,
         )
-    g.map_dataframe(draw_heatmap)
+
+    _g.map_dataframe(draw_heatmap)
     # Achsen-Tick-Labels auf allen Facets setzen
-    g.set_titles(col_template="", row_template="")
-    g.set_axis_labels("")
+    _g.set_titles(col_template="", row_template="")
+    _g.set_axis_labels("")
 
-
-
-    g.set_axis_labels("Predicted", "True Label")
-    for _ax in g.axes.flat:
+    _g.set_axis_labels("Predicted", "True Label")
+    for _ax in _g.axes.flat:
         _ax.set_xticks([0.5, 1.5])
-        _ax.set_xticklabels(cat_order, rotation=0)
+        _ax.set_xticklabels(_cat_order, rotation=0)
         _ax.set_yticks([0.5, 1.5])
-        _ax.set_yticklabels(cat_order, rotation=0)
+        _ax.set_yticklabels(_cat_order, rotation=0)
 
-    for _i, _ax in enumerate(g.axes):
-        _bbox = _ax[0].get_position()  # Get subplot position in figure coordinates
-        g.fig.text(
-            _bbox.x0 - 0.15,         # 2.5% of figure width to the left
+    for _i, _ax in enumerate(_g.axes):
+        _bbox = _ax[
+            0
+        ].get_position()  # Get subplot position in figure coordinates
+        _g.fig.text(
+            _bbox.x0 - 0.15,  # 2.5% of figure width to the left
             _bbox.y0 + _bbox.height / 2,  # Vertically centered
-            g.row_names[_i].upper(),       # Row title
-            ha='right', va='center', rotation=90, fontsize=20, weight=700
+            _g.row_names[_i].upper(),  # Row title
+            ha="right",
+            va="center",
+            rotation=90,
+            fontsize=20,
+            weight=700,
         )
         for _j, _axcol in enumerate(_ax):
             if _i == 0:
-                g.col_names[_j] = "MPRAGE" if g.col_names[_j].lower() == "t1w" else g.col_names[_j]
-                g.col_names[_j] = "FLAIR" if g.col_names[_j].lower() == "flair" else g.col_names[_j]
+                _g.col_names[_j] = (
+                    "MPRAGE"
+                    if _g.col_names[_j].lower() == "t1w"
+                    else _g.col_names[_j]
+                )
+                _g.col_names[_j] = (
+                    "FLAIR"
+                    if _g.col_names[_j].lower() == "flair"
+                    else _g.col_names[_j]
+                )
 
-                _axcol.set_title(g.col_names[_j], fontsize=20, weight=700)
+                _axcol.set_title(_g.col_names[_j], fontsize=20, weight=700)
 
             else:
                 _axcol.set_title("")
 
-
-    g.fig.subplots_adjust(left=0.15, top=0.95)  
+    _g.fig.subplots_adjust(left=0.15, top=0.95)
     plt.tight_layout()
     plt.savefig("confusion_matrices.svg")
-    plt.savefig("confusion_matrices.png",     
-                dpi=300,
-                bbox_inches="tight",    # schneidet nicht ab, erfasst fig.text
-                pad_inches=0.2,         # etwas Padding rundherum)
-               )
+    plt.savefig(
+        "confusion_matrices.png",
+        dpi=300,
+        bbox_inches="tight",  # schneidet nicht ab, erfasst fig.text
+        pad_inches=0.2,  # etwas Padding rundherum)
+    )
 
+    plt.show()
+    return (draw_heatmap,)
+
+
+@app.cell
+def _(columns, draw_heatmap, evaluations_dir, join, pd, plt, sns, test_order):
+    cms_training_df = pd.DataFrame()
+
+    for _modality in ["t1w", "flair"]:
+        for _colname in columns:
+            _df = pd.read_csv(
+                join(
+                    evaluations_dir,
+                    "metrics",
+                    "sfcn",
+                    "test",
+                    "mspaths",
+                    _modality,
+                    f"{_colname}_e1000_b16_im96.csv",
+                )
+            )
+
+            _cm = _df[["tn", "fp", "fn", "tp"]]
+            _cm["modality"] = _modality
+            _cm["neurotest"] = _colname.split("_")[3].upper()
+            cms_training_df = pd.concat(
+                (cms_training_df, _cm), ignore_index=True
+            )
+
+    _rows = []
+    for _, _r in cms_training_df.iterrows():
+        _rows.append(
+            {
+                "Predicted": "Positive",
+                "True Label": "Positive",
+                "Count": _r["tp"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+        _rows.append(
+            {
+                "Predicted": "Positive",
+                "True Label": "Negative",
+                "Count": _r["fp"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+        _rows.append(
+            {
+                "Predicted": "Negative",
+                "True Label": "Positive",
+                "Count": _r["fn"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+        _rows.append(
+            {
+                "Predicted": "Negative",
+                "True Label": "Negative",
+                "Count": _r["tn"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+
+    cm_training_long = pd.DataFrame(_rows)
+
+    # Reihenfolge der Klassen fixieren
+    _cat_order = ["Negative", "Positive"]
+
+    _g = sns.FacetGrid(
+        cm_training_long,
+        col="modality",  # Spalten = Modalities
+        row="neurotest",  # Zeilen = Neurotests
+        row_order=test_order,
+        margin_titles=True,
+        despine=True,
+        sharex=True,
+        sharey=True,
+        height=4,
+        aspect=1.5,
+    )
+
+    # ── 3. Heatmap auf jedes Facet mappen ──
+    # def draw_heatmap(data, **kwargs):
+    #     pivot = data.pivot_table(
+    #         index="True Label",
+    #         columns="Predicted",
+    #         values="Count",
+    #         fill_value=0,
+    #     )
+    #     # Sicherstellen, dass beide Achsen beide Klassen enthalten
+    #     pivot = pivot.reindex(index=cat_order, columns=cat_order, fill_value=0)
+    #     sns.heatmap(
+    #         pivot,
+    #         annot=True,
+    #         fmt="3g",
+    #         cmap="Blues",
+    #         cbar=False,
+    #         square=True,
+    #         linewidths=0.5,
+    #         linecolor="gray",
+    #         **kwargs,
+    #     )
+
+    _g.map_dataframe(draw_heatmap)
+    # Achsen-Tick-Labels auf allen Facets setzen
+    _g.set_titles(col_template="", row_template="")
+    _g.set_axis_labels("")
+
+    _g.set_axis_labels("Predicted", "True Label")
+    for _ax in _g.axes.flat:
+        _ax.set_xticks([0.5, 1.5])
+        _ax.set_xticklabels(_cat_order, rotation=0)
+        _ax.set_yticks([0.5, 1.5])
+        _ax.set_yticklabels(_cat_order, rotation=0)
+
+    for _i, _ax in enumerate(_g.axes):
+        _bbox = _ax[
+            0
+        ].get_position()  # Get subplot position in figure coordinates
+        _g.fig.text(
+            _bbox.x0 - 0.15,  # 2.5% of figure width to the left
+            _bbox.y0 + _bbox.height / 2,  # Vertically centered
+            _g.row_names[_i].upper(),  # Row title
+            ha="right",
+            va="center",
+            rotation=90,
+            fontsize=20,
+            weight=700,
+        )
+        for _j, _axcol in enumerate(_ax):
+            if _i == 0:
+                _g.col_names[_j] = (
+                    "MPRAGE"
+                    if _g.col_names[_j].lower() == "t1w"
+                    else _g.col_names[_j]
+                )
+                _g.col_names[_j] = (
+                    "FLAIR"
+                    if _g.col_names[_j].lower() == "flair"
+                    else _g.col_names[_j]
+                )
+
+                _axcol.set_title(_g.col_names[_j], fontsize=20, weight=700)
+
+            else:
+                _axcol.set_title("")
+
+    _g.fig.subplots_adjust(left=0.15, top=0.95)
+    plt.tight_layout()
+    plt.savefig("confusion_matrices_training.svg")
+    plt.savefig(
+        "confusion_matrices_training.png",
+        dpi=300,
+        bbox_inches="tight",  # schneidet nicht ab, erfasst fig.text
+        pad_inches=0.2,  # etwas Padding rundherum)
+    )
 
     plt.show()
     return

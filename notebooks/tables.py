@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.10"
+__generated_with = "0.24.0"
 app = marimo.App(width="full")
 
 
@@ -15,7 +15,13 @@ def setup_1():
     import marimo as mo
     import pandas as pd
     from os.path import join, abspath, isfile
-    from scipy.stats import chi2_contingency, mannwhitneyu, fisher_exact, ttest_ind, chisquare
+    from scipy.stats import (
+        chi2_contingency,
+        mannwhitneyu,
+        fisher_exact,
+        ttest_ind,
+        chisquare,
+    )
 
     tests = ["pst", "mdt", "wst", "cst"]
     models = ["sfcn", "ssl-finetuned", "lora", "dense", "swin"]
@@ -51,7 +57,6 @@ def setup_1():
     baseline_characteristics_df = baseline_characteristics_df.query(
         "dataset.notnull()"
     )
-
 
     def progression_col(testname):
         return f"worst_progressor_2ycutoff_{testname}_2z"
@@ -110,7 +115,6 @@ def characteristics(
     _sex_f = len(baseline_characteristics_df.query('sex == "female"'))
     demographics["sex"] = [_sex_ds, f"{_sex_f} ({_sex_f / _sex_ds:0.2%})"]
 
-
     demographics["age"] = [
         len(baseline_characteristics_df.query("age.notnull()")),
         f"{baseline_characteristics_df.age.mean():0.1f} ± {baseline_characteristics_df.age.std():0.2f}",
@@ -119,7 +123,6 @@ def characteristics(
         len(baseline_characteristics_df.query("mstype.notnull()")),
         "",
     ]
-
 
     demographics["pdds"] = [
         len(baseline_characteristics_df.query("pdds_scr.notnull()")),
@@ -145,7 +148,9 @@ def characteristics(
     demographics["mstype_rrms"] = [
         pd.NA,
         len(
-            baseline_characteristics_df.query('mstype == "Relapsing Remitting MS"')
+            baseline_characteristics_df.query(
+                'mstype == "Relapsing Remitting MS"'
+            )
         ),
     ]
     demographics["mstype_spms"] = [
@@ -159,13 +164,14 @@ def characteristics(
     demographics["mstype_ppms"] = [
         pd.NA,
         len(
-            baseline_characteristics_df.query('mstype == "Primary Progressive MS"')
+            baseline_characteristics_df.query(
+                'mstype == "Primary Progressive MS"'
+            )
         ),
     ]
 
     for _t in tests:
         demographics[f"progressors_{_t}"] = [pd.NA, pd.NA]
-
 
     for ds in ["training", "validation", "external test"]:
         demographics["dataset"].append(f"{ds} n")
@@ -174,10 +180,14 @@ def characteristics(
             demographics["dataset"].append(f"{ds} p")
 
         _sex_ds = len(
-            baseline_characteristics_df.query("dataset == @ds and sex.notnull()")
+            baseline_characteristics_df.query(
+                "dataset == @ds and sex.notnull()"
+            )
         )
         _sex_f = len(
-            baseline_characteristics_df.query('dataset == @ds and sex == "female"')
+            baseline_characteristics_df.query(
+                'dataset == @ds and sex == "female"'
+            )
         )
         demographics["sex"].append(_sex_ds)
         demographics["sex"].append(f"{_sex_f} ({_sex_f / _sex_ds:0.2%})")
@@ -212,7 +222,9 @@ def characteristics(
                     ],
                 ]
             )
-            _odds_ratio, _p_value, dof, expected = chi2_contingency(_sex_training)
+            _odds_ratio, _p_value, dof, expected = chi2_contingency(
+                _sex_training
+            )
             demographics["sex"].append(f"{_p_value:0.3f}")
 
         demographics["age"].append(
@@ -315,7 +327,9 @@ def characteristics(
                     ],
                 ]
             )
-            _odds_ratio, _p_value, dof, expected = chi2_contingency(_cis_training)
+            _odds_ratio, _p_value, dof, expected = chi2_contingency(
+                _cis_training
+            )
             demographics["mstype_cis"].append(f"{_p_value:0.3f}")
 
         demographics["mstype_prms"].append(
@@ -356,7 +370,9 @@ def characteristics(
                     ],
                 ]
             )
-            _odds_ratio, _p_value, dof, expected = chi2_contingency(_cis_training)
+            _odds_ratio, _p_value, dof, expected = chi2_contingency(
+                _cis_training
+            )
             demographics["mstype_prms"].append(f"{_p_value:0.3f}")
 
             # demographics["mstype_"].append(pd.NA)
@@ -399,7 +415,9 @@ def characteristics(
                     ],
                 ]
             )
-            _odds_ratio, _p_value, dof, expected = chi2_contingency(_cis_training)
+            _odds_ratio, _p_value, dof, expected = chi2_contingency(
+                _cis_training
+            )
             demographics["mstype_rrms"].append(f"{_p_value:0.3f}")
 
         demographics["mstype_spms"].append(
@@ -440,7 +458,9 @@ def characteristics(
                     ],
                 ]
             )
-            _odds_ratio, _p_value, dof, expected = chi2_contingency(_spms_training)
+            _odds_ratio, _p_value, dof, expected = chi2_contingency(
+                _spms_training
+            )
             demographics["mstype_spms"].append(f"{_p_value:0.3f}")
 
         demographics["mstype_ppms"].append(
@@ -480,7 +500,9 @@ def characteristics(
                     ],
                 ]
             )
-            _odds_ratio, _p_value, dof, expected = chi2_contingency(_ppms_training)
+            _odds_ratio, _p_value, dof, expected = chi2_contingency(
+                _ppms_training
+            )
             demographics["mstype_ppms"].append(f"{_p_value:0.3f}")
 
         for _t in tests:
@@ -514,10 +536,15 @@ def characteristics(
             if ds in ["validation", "external test"]:
                 # TODO: add here mann-whitney-u
                 _progressor_training = np.array(
-                    [[_n_training, _n_trainingprogressors], [_n, _n_progressors]]
+                    [
+                        [_n_training, _n_trainingprogressors],
+                        [_n, _n_progressors],
+                    ]
                 )
 
-                _odds_ratio, _p_value, dof, expected = chi2_contingency(_progressor_training)
+                _odds_ratio, _p_value, dof, expected = chi2_contingency(
+                    _progressor_training
+                )
                 demographics[f"progressors_{_t}"].append(f"{_p_value:0.4f}")
                 # demographics[f"progressors_{_t}"].append(pd.NA)
     # pd.DataFrame(demographics)
@@ -558,7 +585,6 @@ def _(baseline_characteristics_df, fisher_exact, np):
     )
 
     _odds_ratio, _p_value = fisher_exact(_sex_training)
-
 
     _sex_training = np.array(
         [
@@ -612,8 +638,10 @@ def _(
     tests,
 ):
     _pvalues = {}
-    _pvalues["dataset"] = ["training vs validation", "training vs external test"]
-
+    _pvalues["dataset"] = [
+        "training vs validation",
+        "training vs external test",
+    ]
 
     def add_pvalue(var_name, test_type):
         _pvalues[var_name] = []
@@ -633,10 +661,11 @@ def _(
                 # For continuous variables (age, pdds)
                 pass
 
-
     _pvalues = {}
-    _pvalues["dataset"] = ["training vs validation", "training vs external test"]
-
+    _pvalues["dataset"] = [
+        "training vs validation",
+        "training vs external test",
+    ]
 
     # Helper function for safe Mann-Whitney U test
     def safe_mannwhitneyu(x, y):
@@ -651,7 +680,6 @@ def _(
                 return pd.NA
         return pd.NA
 
-
     # Helper function for safe chi-squared test
     def safe_chi2_contingency(table):
         try:
@@ -659,7 +687,6 @@ def _(
             return p
         except:
             return pd.NA
-
 
     # Helper function for safe Fisher's exact test
     def safe_fisher_exact(table):
@@ -690,7 +717,6 @@ def _(
 
         return pd.NA
 
-
     # Helper function for safe chi-squared test
     def safe_chi2_contingency(table):
         try:
@@ -698,7 +724,6 @@ def _(
             return p
         except:
             return pd.NA
-
 
     # Helper function for safe Fisher's exact test
     def safe_fisher_exact(table):
@@ -721,10 +746,12 @@ def _(
         table = [[female1, male1], [female2, male2]]
         _pvalues["sex"].append(safe_fisher_exact(table))
 
-
     # Age (Mann-Whitney U test)
     _pvalues["age"] = []
-    for comparison in [("training", "validation"), ("training", "external test")]:
+    for comparison in [
+        ("training", "validation"),
+        ("training", "external test"),
+    ]:
         ds1, ds2 = comparison
         age1 = baseline_characteristics_df.query(f'dataset == "{ds1}"').age
         age2 = baseline_characteristics_df.query(f'dataset == "{ds2}"').age
@@ -732,7 +759,10 @@ def _(
 
     # MS type (chi-squared)
     _pvalues["mstype"] = []
-    for comparison in [("training", "validation"), ("training", "external test")]:
+    for comparison in [
+        ("training", "validation"),
+        ("training", "external test"),
+    ]:
         ds1, ds2 = comparison
         # Create contingency table for all MS types
         types1 = baseline_characteristics_df.query(
@@ -754,10 +784,17 @@ def _(
 
     # PDDS (Mann-Whitney U test)
     _pvalues["pdds"] = []
-    for comparison in [("training", "validation"), ("training", "external test")]:
+    for comparison in [
+        ("training", "validation"),
+        ("training", "external test"),
+    ]:
         ds1, ds2 = comparison
-        pdds1 = baseline_characteristics_df.query(f'dataset == "{ds1}"').pdds_scr
-        pdds2 = baseline_characteristics_df.query(f'dataset == "{ds2}"').pdds_scr
+        pdds1 = baseline_characteristics_df.query(
+            f'dataset == "{ds1}"'
+        ).pdds_scr
+        pdds2 = baseline_characteristics_df.query(
+            f'dataset == "{ds2}"'
+        ).pdds_scr
         _pvalues["pdds"].append(safe_mannwhitneyu(pdds1, pdds2))
 
     # MS type subtypes
@@ -807,7 +844,10 @@ def _(
             )
 
             # Create table: [count_of_interest, other_count] for each dataset
-            table = [[subtype1, total1 - subtype1], [subtype2, total2 - subtype2]]
+            table = [
+                [subtype1, total1 - subtype1],
+                [subtype2, total2 - subtype2],
+            ]
             _pvalues[mstype_var].append(safe_chi2_contingency(table))
 
     # Progressors for each test (Fisher's exact test)
@@ -852,20 +892,52 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Demographics
-
-
+    ### Calculate sensitivity, specifity, PPV and NPV
     """)
+    return
 
-    mo.md(r"""
-    \begin{tabular}{lrr}
-    \toprule
-        Category & Count & Percentage \\
-    \midrule
 
-    \bottomrule
-    \end{tabular}
-    """)
+@app.cell
+def _(batchsize, eval_dir, imagesize, join, pd, tests):
+    sensitivity_df = pd.DataFrame()
+
+    for _modality in ["t1w", "flair"]:
+        for _test in tests:
+            _df = pd.read_csv(
+                join(
+                    eval_dir,
+                    "metrics",
+                    "sfcn",
+                    "test",
+                    "mspaths2",
+                    _modality,
+                    f"worst_progressor_2ycutoff_{_test}_2z_e1000_b{batchsize}_im{imagesize}.csv",
+                )
+            )
+            _df["modality"] = _modality
+            _df["test"] = _test
+
+            sensitivity_df = pd.concat(
+                (sensitivity_df, _df), ignore_index=True
+            )
+
+    sensitivity_df["PPV"] = sensitivity_df["tp"].astype(float) / (
+        sensitivity_df["tp"].astype(float) + sensitivity_df["fp"].astype(float)
+    )
+    sensitivity_df["NPV"] = sensitivity_df["tn"].astype(float) / (
+        sensitivity_df["tn"].astype(float) + sensitivity_df["fn"].astype(float)
+    )
+    sensitivity_df["Sensitivity"] = sensitivity_df["tp"].astype(float) / (
+        sensitivity_df["tp"].astype(float) + sensitivity_df["fn"].astype(float)
+    )
+    sensitivity_df["Specitivity"] = sensitivity_df["tn"].astype(float) / (
+        sensitivity_df["tn"].astype(float) + sensitivity_df["fp"].astype(float)
+    )
+
+    pd.options.display.float_format = "{:.3f}".format
+    sensitivity_df[
+        ["modality", "test", "Sensitivity", "Specitivity", "PPV", "NPV"]
+    ]
     return
 
 
@@ -873,7 +945,8 @@ def _(mo):
 def _(baseline_characteristics_df):
     mstype_counts = baseline_characteristics_df["mstype"].value_counts()
     mstype_counts_percentage = (
-        mstype_counts / len(baseline_characteristics_df.query("mstype.notnull()"))
+        mstype_counts
+        / len(baseline_characteristics_df.query("mstype.notnull()"))
     ) * 100
 
     print(mstype_counts)
@@ -885,7 +958,9 @@ def _(baseline_characteristics_df):
 def _(dataset_df):
     for _ds in dataset_df.dataset.unique():
         _per = (
-            len(dataset_df.query(f'dataset == "{_ds}"')) * 100.0 / len(dataset_df)
+            len(dataset_df.query(f'dataset == "{_ds}"'))
+            * 100.0
+            / len(dataset_df)
         )
         print(f"{_ds}: {_per}")
     return
@@ -945,7 +1020,6 @@ def _(batchsize, eval_dir, imagesize, isfile, join, models, pd, tests):
     _performance["Accuracy"] = []
     _performance["F1-Score"] = []
 
-
     for _neurotest in tests:
         for _modality in ["t1w", "flair"]:
             for _model in models:
@@ -991,8 +1065,7 @@ def _(batchsize, eval_dir, imagesize, isfile, join, models, pd, tests):
                     _performance["Accuracy"].append(pd.NA)
                     _performance["F1-Score"].append(pd.NA)
 
-
-    pd.DataFrame(_performance)
+    pd.DataFrame(_performance).query('model=="sfcn"')
     return
 
 
@@ -1009,26 +1082,57 @@ def _(batchsize, eval_dir, imagesize, join, pd, tests):
     youden_df = pd.DataFrame()
     for _modality in ["t1w", "flair"]:
         for _neurotest in tests:
-            _fname = join(eval_dir,"metrics", "sfcn", "test", "mspaths2", _modality,                f"worst_progressor_2ycutoff_{_neurotest}_2z_e1000_b{batchsize}_im{imagesize}_thresholds.csv")
+            _fname = join(
+                eval_dir,
+                "metrics",
+                "sfcn",
+                "test",
+                "mspaths2",
+                _modality,
+                f"worst_progressor_2ycutoff_{_neurotest}_2z_e1000_b{batchsize}_im{imagesize}_thresholds.csv",
+            )
             _df = pd.read_csv(_fname)
-            _df['modality'] = _modality
-            _df['neurotest'] = _neurotest
+            _df["modality"] = _modality
+            _df["neurotest"] = _neurotest
             youden_df = pd.concat((youden_df, _df), ignore_index=False)
 
-    youden_df = youden_df[['modality', 'neurotest', 'youden_threshold', 'youden_sensitivity', 'youden_specificity', 'youden_index']]
-    youden_df['Classification Rule'] = (
-        "Score ≥ " + youden_df['youden_threshold'].round(4).astype(str) + 
-        " → High Risk")
-
+    youden_df = youden_df[
+        [
+            "modality",
+            "neurotest",
+            "youden_threshold",
+            "youden_sensitivity",
+            "youden_specificity",
+            "youden_index",
+        ]
+    ]
+    youden_df["Classification Rule"] = (
+        "Score ≥ "
+        + youden_df["youden_threshold"].round(4).astype(str)
+        + " → High Risk"
+    )
 
     # ✅ Step 1: Round all numeric columns to 4 decimal places
     # Select only numeric columns
-    numeric_cols = youden_df.select_dtypes(include='number').columns
+    numeric_cols = youden_df.select_dtypes(include="number").columns
 
     # Apply rounding
     youden_df[numeric_cols] = youden_df[numeric_cols].round(4)
 
     youden_df
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## DeLongs Test
+    """)
     return
 
 
