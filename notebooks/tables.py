@@ -296,7 +296,13 @@ def characteristics(
                 )
             )
         )
-        demographics["mstype_cis"].append(pd.NA)
+        demographics["mstype_cis"].append(f"{
+            100.0 * 
+            len(baseline_characteristics_df.query('dataset==@ds and mstype == "Clinically Isolated Syndrome"')) / 
+            len(baseline_characteristics_df.query('dataset==@ds')):0.2f}%"
+        )
+
+    
         if ds in ["validation", "external test"]:
             # TODO: add here mann-whitney-u
             _cis_training = np.array(
@@ -335,11 +341,17 @@ def characteristics(
         demographics["mstype_prms"].append(
             len(
                 baseline_characteristics_df.query(
-                    'dataset== @ds and mstype == "Progressmannwhitneyuive Relapsing MS"'
+                    'dataset== @ds and mstype == "Progressive Relapsing MS"'
                 )
             )
         )
-        demographics["mstype_prms"].append(pd.NA)
+        demographics["mstype_prms"].append(f"{
+            100.0 * 
+            len(baseline_characteristics_df.query('dataset==@ds and mstype == "Progressive Relapsing MS"')) / 
+            len(baseline_characteristics_df.query('dataset==@ds')):0.2f}%"
+        )
+
+    
         if ds in ["validation", "external test"]:
             # TODO: add here mann-whitney-u
             _cis_training = np.array(
@@ -384,7 +396,12 @@ def characteristics(
                 )
             )
         )
-        demographics["mstype_rrms"].append(pd.NA)
+
+        demographics["mstype_rrms"].append(f"{
+            100.0 * 
+            len(baseline_characteristics_df.query('dataset==@ds and mstype == "Relapsing Remitting MS"')) / 
+            len(baseline_characteristics_df.query('dataset==@ds')):0.2f}%"
+        )
         if ds in ["validation", "external test"]:
             # TODO: add here mann-whitney-u
             _cis_training = np.array(
@@ -427,7 +444,11 @@ def characteristics(
                 )
             )
         )
-        demographics["mstype_spms"].append(pd.NA)
+        demographics["mstype_spms"].append(f"{
+            100.0 * 
+            len(baseline_characteristics_df.query('dataset==@ds and mstype == "Secondary Progressive MS"')) / 
+            len(baseline_characteristics_df.query('dataset==@ds')):0.2f}%"
+        )
         if ds in ["validation", "external test"]:
             # TODO: add here mann-whitney-u
             _spms_training = np.array(
@@ -470,7 +491,12 @@ def characteristics(
                 )
             )
         )
-        demographics["mstype_ppms"].append(pd.NA)
+        demographics["mstype_ppms"].append(f"{
+            100.0 * 
+            len(baseline_characteristics_df.query('dataset==@ds and mstype =="Primary Progressive MS"')) / 
+            len(baseline_characteristics_df.query('dataset==@ds')):0.2f}%"
+        )
+    
         if ds in ["validation", "external test"]:
             _ppms_training = np.array(
                 [
@@ -935,6 +961,9 @@ def _(batchsize, eval_dir, imagesize, join, pd, tests):
     )
 
     pd.options.display.float_format = "{:.3f}".format
+    sensitivity_df[
+        ["modality", "test", "Sensitivity", "Specitivity", "PPV", "NPV"]
+    ].to_excel('sensitivity.xlsx')
     sensitivity_df[
         ["modality", "test", "Sensitivity", "Specitivity", "PPV", "NPV"]
     ]

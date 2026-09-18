@@ -1529,7 +1529,7 @@ def _(
     return find_optimal_thresholds, kmplots, plot_kaplan_meier
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(df_flair, df_t1w, kmplots, matplotlib, plt):
     _t1figs = kmplots(df_t1w, "T1w")
     _flairfigs = kmplots(df_flair, "FLAIR")
@@ -1626,7 +1626,7 @@ def _(df_flair, df_t1w, kmplots, matplotlib, plt):
                 rotation=90
             )
 
-    
+
             # --- Left: T1w plot ---
             t1_new_ax = fig.add_subplot(gs[i+1, 1])
             # t1_new_ax.set_title(f"T1w Image {i + 1}", fontsize=10, pad=5)
@@ -1635,7 +1635,7 @@ def _(df_flair, df_t1w, kmplots, matplotlib, plt):
             t1_new_ax.set_xlim(global_xlim)
             t1_new_ax.set_ylim(global_ylim)
             t1_new_ax.autoscale(enable=False)
-    
+
             # Copy all lines
             for line in t1_ax.get_lines():
                 t1_new_ax.plot(
@@ -1708,7 +1708,7 @@ def _(df_flair, df_t1w, kmplots, matplotlib, plt):
             flair_new_ax.autoscale(enable=False)
 
 
-    
+
             # Copy lines
             for line in flair_ax.get_lines():
                 flair_new_ax.plot(
@@ -1804,7 +1804,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(columns, data_dir, find_optimal_thresholds, join, pd, plot_kaplan_meier):
     def kmplots_training(df, name):
         col_mapping = {
@@ -1855,7 +1855,7 @@ def _(columns, data_dir, find_optimal_thresholds, join, pd, plot_kaplan_meier):
     return (kmplots_training,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     df_training_flair,
     df_training_t1w,
@@ -1972,7 +1972,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     cm,
     columns,
@@ -2342,6 +2342,7 @@ def _(pd, plt, sns, spidy, test_order):
     # Rotate x-axis tick labels
     for _ax in grid.axes.flat:
         _ax.tick_params(axis="x", rotation=60, labelrotation_mode="xtick")
+        _ax.set_ylabel("attention")
         _ax.set_xlabel("")
 
     for _i, _ax in enumerate(grid.axes):
@@ -2430,7 +2431,7 @@ def _(pd, plt, sns, test_order):
     for _ax in fsgrid.axes.flat:
         _ax.tick_params(axis="x", rotation=60, labelrotation_mode="xtick")
         _ax.set_xlabel("")
-        _ax.set_ylabel("")
+        _ax.set_ylabel("attention")
 
     for _i, _ax in enumerate(fsgrid.axes):
         _bbox = _ax[
