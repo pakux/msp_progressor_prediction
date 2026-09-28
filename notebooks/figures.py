@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.24.2"
 app = marimo.App(width="full", app_title="Figures and plots")
 
 
@@ -39,6 +39,8 @@ def setup_1(mo):
     import matplotlib.cm as cm
     import matplotlib.colors as mcolors
     import matplotlib.pyplot as plt
+    import matplotlib.patches as patches
+
     import nibabel as nib
     import numpy as np
     import pandas as pd
@@ -112,6 +114,25 @@ def setup_1(mo):
     sns.set_context("notebook")
 
     dataset_order = ["training", "validation", "test"]
+    order_regions = [
+        "Frontal",
+        "Parietal",
+        "Occipital",
+        "Temporal",
+        "CorpusCallossum",
+        "Brainstem",
+        "Cerebellum",
+    ]
+
+    # Create a split bet
+    order_regions_reg = [
+        "Frontal",
+        "Parietal",
+        "Occipital",
+        "Temporal",
+        "Cerebellum",
+    ]
+    order_regions_tracts = ["CorpusCallossum", "Brainstem"]
 
     color_female = "#008080"
     color_male = "#FFA500"
@@ -147,6 +168,9 @@ def setup_1(mo):
         mcolors,
         models_dir,
         np,
+        order_regions_reg,
+        order_regions_tracts,
+        patches,
         patientstable,
         pd,
         plot_stat_map,
@@ -528,6 +552,53 @@ def _(pat_df, pd, plt, sns):
     return
 
 
+@app.cell(hide_code=True)
+def _(color_female, color_male, pat_df, plt):
+    def draw_pie(df, column, colors=None):
+        # Create the donut chart
+        fig, ax = plt.subplots(figsize=(2, 2))
+
+        data = df.groupby(column).agg({column: "count"}).to_dict()[column]
+
+        # Standardfarben, falls keine Farben angegeben wurden
+        if colors is None:
+            colors = ["#1f77b4", "#ff7f0e"]  # Blau und Orange (neutral)
+
+        # Create the pie chart with a hole (donut effect)
+        ax.pie(
+            data.values(),
+            labels=data.keys(),
+            autopct="%1.1f%%",  # Show percentages
+            startangle=90,  # Start from top
+            pctdistance=0.65,  # Position percentage inside the donut
+            textprops={"fontsize": 12},
+            wedgeprops=dict(
+                width=0.7, edgecolor="white"
+            ),  # Create the donut hole
+            colors=colors,
+        )
+
+        # Add a circle at the center to create the donut effect
+        centre_circle = plt.Circle((0, 0), 0.2, fc="white")
+        ax.add_artist(centre_circle)
+
+        # Equal aspect ratio ensures that pie is drawn as a circle
+        ax.axis("equal")
+
+        # Title
+        # plt.title('Sex Distribution in Dataset', fontsize=16, fontweight='bold', pad=20)
+
+        # Show the plot
+        plt.show()
+
+    draw_pie(
+        pat_df.query('sex in ["female", "male"]'),
+        "sex",
+        colors=[color_female, color_male],
+    )
+    return
+
+
 @app.cell
 def _(cmap, pat_df, pd, plt):
     _ax = pd.crosstab(pat_df["site"], pat_df["dataset"]).plot(
@@ -647,7 +718,7 @@ def _(color_female, color_male, pat_df, pd, plt, sns):
     plt.tight_layout()
     plt.savefig("gender_distribution_by_dataset.svg")
     plt.gca()
-    return
+    return (i,)
 
 
 @app.cell(hide_code=True)
@@ -1597,8 +1668,8 @@ def _(df_flair, df_t1w, kmplots, matplotlib, plt):
 
         # First, find consistent limits across ALL original axes
         all_axes = _t1figs + _flairfigs
-        global_xlim = [float('inf'), float('-inf')]
-        global_ylim = [float('inf'), float('-inf')]
+        global_xlim = [float("inf"), float("-inf")]
+        global_ylim = [float("inf"), float("-inf")]
 
         for ax in all_axes:
             xlim = ax.get_xlim()
@@ -1608,30 +1679,37 @@ def _(df_flair, df_t1w, kmplots, matplotlib, plt):
             global_ylim[0] = min(global_ylim[0], ylim[0])
             global_ylim[1] = max(global_ylim[1], ylim[1])
 
-
         # Create figure with grid layout
         fig = plt.figure(figsize=(20, 10 * len(_t1figs)))
         gs = plt.GridSpec(
-            len(_t1figs) + 1, 2 + 1, width_ratios=[0.08, 1, 1], hspace=0.2, wspace=0.2, height_ratios=[0.05,1,1,1,1]
+            len(_t1figs) + 1,
+            2 + 1,
+            width_ratios=[0.08, 1, 1],
+            hspace=0.2,
+            wspace=0.2,
+            height_ratios=[0.05, 1, 1, 1, 1],
         )
 
         for i, (t1_ax, flair_ax) in enumerate(zip(_t1figs, _flairfigs)):
             # --- Row Label (Column 0) ---
             ax_row_label = fig.add_subplot(gs[i + 1, 0])
-            ax_row_label.axis('off')
+            ax_row_label.axis("off")
             ax_row_label.text(
-                0.5, 0.5, t1_ax.title.get_text(), 
-                ha='right', va='center', 
-                fontsize=24, fontweight='bold',
-                rotation=90
+                0.5,
+                0.5,
+                t1_ax.title.get_text(),
+                ha="right",
+                va="center",
+                fontsize=24,
+                fontweight="bold",
+                rotation=90,
             )
 
-
             # --- Left: T1w plot ---
-            t1_new_ax = fig.add_subplot(gs[i+1, 1])
+            t1_new_ax = fig.add_subplot(gs[i + 1, 1])
             # t1_new_ax.set_title(f"T1w Image {i + 1}", fontsize=10, pad=5)
 
-           # Set CONSISTENT limits for ALL subfigures
+            # Set CONSISTENT limits for ALL subfigures
             t1_new_ax.set_xlim(global_xlim)
             t1_new_ax.set_ylim(global_ylim)
             t1_new_ax.autoscale(enable=False)
@@ -1699,15 +1777,13 @@ def _(df_flair, df_t1w, kmplots, matplotlib, plt):
                 t1_new_ax.legend(loc="upper right")
 
             # --- Right: FLAIR plot ---
-            flair_new_ax = fig.add_subplot(gs[i+1, 2])
+            flair_new_ax = fig.add_subplot(gs[i + 1, 2])
             # flair_new_ax.set_title(f"FLAIR Image {i + 1}", fontsize=10, pad=5)
 
             # Set CONSISTENT limits for ALL subfigures
             flair_new_ax.set_xlim(global_xlim)
             flair_new_ax.set_ylim(global_ylim)
             flair_new_ax.autoscale(enable=False)
-
-
 
             # Copy lines
             for line in flair_ax.get_lines():
@@ -1766,25 +1842,29 @@ def _(df_flair, df_t1w, kmplots, matplotlib, plt):
 
         # T1w Header
         ax_header_t1 = fig.add_subplot(gs[0, 1])
-        ax_header_t1.axis('off')
+        ax_header_t1.axis("off")
         ax_header_t1.text(
-            0.5, 0.3, "MPRAGE", 
-            ha='center', va='center', 
-            fontsize=24, fontweight='bold'
+            0.5,
+            0.3,
+            "MPRAGE",
+            ha="center",
+            va="center",
+            fontsize=24,
+            fontweight="bold",
         )
 
         # FLAIR Header
         ax_header_flair = fig.add_subplot(gs[0, 2])
-        ax_header_flair.axis('off')
+        ax_header_flair.axis("off")
         ax_header_flair.text(
-            0.5, 0.3, "FLAIR", 
-            ha='center', va='center', 
-            fontsize=24, fontweight='bold'
+            0.5,
+            0.3,
+            "FLAIR",
+            ha="center",
+            va="center",
+            fontsize=24,
+            fontweight="bold",
         )
-
-
-
-
 
         # plt.tight_layout()
 
@@ -1863,7 +1943,7 @@ def _(
     kmplots_training,
     plt,
 ):
-    _t1figs = kmplots_training( df_training_t1w, "T1w")
+    _t1figs = kmplots_training(df_training_t1w, "T1w")
     _flairfigs = kmplots_training(df_training_flair, "FLAIR")
     _n_images = len(_t1figs)
 
@@ -2394,7 +2474,7 @@ def _(mo):
 
 
 @app.cell
-def _(pd, plt, sns, test_order):
+def _(order_regions_reg, order_regions_tracts, pd, plt, sns, test_order):
     # read region means
     fsregions_df = pd.read_csv(
         "region_means.tsv", sep="\t", dtype={"subject": str}
@@ -2422,7 +2502,11 @@ def _(pd, plt, sns, test_order):
         aspect=1.5,
     )
     fsgrid.map_dataframe(
-        sns.barplot, "region", "mean_intensity", errorbar=("ci", 95)
+        sns.barplot,
+        "region",
+        "mean_intensity",
+        errorbar=("ci", 95),
+        order=order_regions_reg,
     )
     fsgrid.set_titles(row_template="", col_template="{col_name}")
     fsgrid.set_axis_labels("")
@@ -2467,6 +2551,73 @@ def _(pd, plt, sns, test_order):
 
     plt.savefig("regional_attention.svg")
     plt.savefig("regional_attention.png")
+
+    plt.show()
+
+    fsgrid_tracts = sns.FacetGrid(
+        fsregions_df,
+        # x='region',
+        row="neurotes",
+        col="modality",
+        hue="neurotes",
+        row_order=test_order,
+        sharey=True,
+        sharex=True,
+        height=4,
+        aspect=0.8,
+    )
+    fsgrid_tracts.map_dataframe(
+        sns.barplot,
+        "region",
+        "mean_intensity",
+        errorbar=("ci", 95),
+        order=order_regions_tracts,
+    )
+    fsgrid_tracts.set_titles(row_template="", col_template="{col_name}")
+    fsgrid_tracts.set_axis_labels("")
+
+    # Rotate x-axis tick labels
+    for _ax in fsgrid_tracts.axes.flat:
+        _ax.tick_params(axis="x", rotation=60, labelrotation_mode="xtick")
+        _ax.set_xlabel("")
+        _ax.set_ylabel("attention")
+
+    for _i, _ax in enumerate(fsgrid_tracts.axes):
+        _bbox = _ax[
+            0
+        ].get_position()  # Get subplot position in figure coordinates
+        fsgrid_tracts.fig.text(
+            _bbox.x0 - 0.1,  # 2.5% of figure width to the left
+            _bbox.y0 + _bbox.height / 2,  # Vertically centered
+            fsgrid_tracts.row_names[_i],  # Row title
+            ha="right",
+            va="center",
+            rotation=90,
+            fontsize=20,
+            weight=700,
+        )
+        for _j, _axcol in enumerate(_ax):
+            if _i == 0:
+                fsgrid_tracts.col_names[_j] = (
+                    "MPRAGE"
+                    if fsgrid_tracts.col_names[_j].lower() == "t1w"
+                    else fsgrid_tracts.col_names[_j]
+                )
+                fsgrid.col_names[_j] = (
+                    "FLAIR"
+                    if fsgrid_tracts.col_names[_j].lower() == "flair"
+                    else fsgrid_tracts.col_names[_j]
+                )
+
+                _axcol.set_title(
+                    fsgrid_tracts.col_names[_j], fontsize=20, weight=700
+                )
+
+            else:
+                _axcol.set_title("")
+
+    # plt.savefig("regional_attention.svg")
+    # plt.savefig("regional_attention.png")
 
     plt.show()
     return fsregions_df, fsregions_molten_df
@@ -2817,7 +2968,1266 @@ def _(columns, draw_heatmap, evaluations_dir, join, pd, plt, sns, test_order):
 
 
 @app.cell
-def _():
+def _(i, patches, plt):
+    # Set up canvas
+    _fig, _axs = plt.subplots(2, 2, figsize=(16, 12), dpi=300)
+    _fig.patch.set_facecolor("#F8F9FA")
+
+    # Styling palette
+    navy = "#1A2B4C"
+    teal = "#008080"
+    light_blue = "#EBF5FB"
+    light_teal = "#E8F8F5"
+    accent_blue = "#2980B9"
+    accent_teal = "#16A085"
+    accent_purple = "#8E44AD"
+    accent_orange = "#D35400"
+    border_gray = "#BDC3C7"
+
+    def add_panel_header(ax, title, color):
+        ax.add_patch(
+            patches.Rectangle(
+                (0, 8.8), 10, 1.2, facecolor=color, edgecolor="none", zorder=2
+            )
+        )
+        ax.text(
+            0.3,
+            9.4,
+            title,
+            color="white",
+            fontsize=13,
+            fontweight="bold",
+            va="center",
+            zorder=3,
+        )
+
+    for _ax in _axs.flat:
+        _ax.set_xlim(0, 10)
+        _ax.set_ylim(0, 10)
+        _ax.axis("off")
+
+    # ---------------------------------------------------------
+    # PANEL A: Cohort Description
+    # ---------------------------------------------------------
+    ax_a = _axs[0, 0]
+    ax_a.add_patch(
+        patches.FancyBboxPatch(
+            (0.1, 0.1),
+            9.8,
+            9.8,
+            boxstyle="round,pad=0.1,rounding_size=0.3",
+            facecolor="white",
+            edgecolor=border_gray,
+            linewidth=1.5,
+        )
+    )
+    add_panel_header(
+        ax_a, "Panel A: Cohort Description (MS PATHS Study)", navy
+    )
+
+    ax_a.add_patch(
+        patches.FancyBboxPatch(
+            (0.5, 6.0),
+            9.0,
+            2.3,
+            boxstyle="round,pad=0.1,rounding_size=0.2",
+            facecolor=light_blue,
+            edgecolor=accent_blue,
+            linewidth=1.2,
+        )
+    )
+    ax_a.text(
+        0.8,
+        7.8,
+        "Multi-Center Dataset (MS PATHS Cohort)",
+        fontsize=11,
+        fontweight="bold",
+        color=navy,
+    )
+    ax_a.text(
+        0.8,
+        7.3,
+        "• 10 Academic Centers: 7 USA + 3 European Centers",
+        fontsize=9.5,
+        color="#2C3E50",
+    )
+    ax_a.text(
+        0.8,
+        6.8,
+        "• Disease Phenotypes: CIS, RRMS, SPMS, PPMS, PRMS",
+        fontsize=9.5,
+        color="#2C3E50",
+    )
+    ax_a.text(
+        0.8,
+        6.3,
+        "• Baseline scans: 3D MPRAGE & 3D FLAIR within 3 months of test",
+        fontsize=9,
+        color="#566573",
+    )
+
+    ax_a.add_patch(
+        patches.FancyBboxPatch(
+            (0.5, 3.2),
+            9.0,
+            2.4,
+            boxstyle="round,pad=0.1,rounding_size=0.2",
+            facecolor="#F2F4F4",
+            edgecolor="#95A5A6",
+            linewidth=1.2,
+        )
+    )
+    ax_a.text(
+        0.8,
+        5.1,
+        "Patient Cohort Stratification (Total N = 8,397)",
+        fontsize=11,
+        fontweight="bold",
+        color=navy,
+    )
+
+    splits = [
+        ("Training", "6,209", "(73.9%)"),
+        ("Validation", "1,553", "(18.5%)"),
+        ("External Test", "635", "(7.6%)"),
+    ]
+    x_pos = [0.8, 3.8, 6.8]
+    for _i, (_name, _count, _pct) in enumerate(splits):
+        ax_a.add_patch(
+            patches.FancyBboxPatch(
+                (x_pos[_i], 3.5),
+                2.5,
+                1.2,
+                boxstyle="round,pad=0.08,rounding_size=0.15",
+                facecolor="white",
+                edgecolor=accent_blue,
+                linewidth=1,
+            )
+        )
+        ax_a.text(
+            x_pos[_i] + 1.25,
+            4.3,
+            _name,
+            fontsize=9.5,
+            fontweight="bold",
+            ha="center",
+            color=navy,
+        )
+        ax_a.text(
+            x_pos[_i] + 1.25,
+            3.8,
+            f"n = {_count}\n{_pct}",
+            fontsize=8.5,
+            ha="center",
+            color="#5D6D7E",
+        )
+
+    ax_a.add_patch(
+        patches.FancyBboxPatch(
+            (0.5, 0.5),
+            9.0,
+            2.3,
+            boxstyle="round,pad=0.1,rounding_size=0.2",
+            facecolor=light_blue,
+            edgecolor=accent_blue,
+            linewidth=1.2,
+        )
+    )
+    ax_a.text(
+        0.8,
+        2.3,
+        "Cohort Demographics",
+        fontsize=11,
+        fontweight="bold",
+        color=navy,
+    )
+    ax_a.text(
+        0.8,
+        1.8,
+        "• Mean Age: 45.9 ± 11.9 years",
+        fontsize=9.5,
+        color="#2C3E50",
+    )
+    ax_a.text(
+        0.8,
+        1.3,
+        "• Sex Distribution: 73.5% Female (n = 6,171)",
+        fontsize=9.5,
+        color="#2C3E50",
+    )
+    ax_a.text(
+        0.8,
+        0.8,
+        "• Mean Disability (PDDS): 1.7 ± 1.97",
+        fontsize=9.5,
+        color="#2C3E50",
+    )
+
+    # ---------------------------------------------------------
+    # PANEL B: Functional Tests Description
+    # ---------------------------------------------------------
+    ax_b = _axs[0, 1]
+    ax_b.add_patch(
+        patches.FancyBboxPatch(
+            (0.1, 0.1),
+            9.8,
+            9.8,
+            boxstyle="round,pad=0.1,rounding_size=0.3",
+            facecolor="white",
+            edgecolor=border_gray,
+            linewidth=1.5,
+        )
+    )
+    add_panel_header(ax_b, "Panel B: Functional Tests (MSPT Domains)", teal)
+
+    tests = [
+        (
+            "PST",
+            "Processing Speed Test",
+            "Cognition (Processing Speed)",
+            "#E74C3C",
+        ),
+        (
+            "WST",
+            "Walking Speed Test",
+            "Ambulation / Lower Limb Motor",
+            "#E67E22",
+        ),
+        (
+            "MDT",
+            "Manual Dexterity Test",
+            "Upper Limb Fine Motor Skill",
+            "#27AE60",
+        ),
+        (
+            "CST",
+            "Contrast Sensitivity Test",
+            "Visual Function / Acuity",
+            "#2980B9",
+        ),
+    ]
+
+    for _i, (_abbr, _name, _desc, _col) in enumerate(tests):
+        y = 6.8 - _i * 1.35
+        ax_b.add_patch(
+            patches.FancyBboxPatch(
+                (0.5, y),
+                9.0,
+                1.15,
+                boxstyle="round,pad=0.08,rounding_size=0.15",
+                facecolor=light_teal,
+                edgecolor=accent_teal,
+                linewidth=1,
+            )
+        )
+        ax_b.add_patch(
+            patches.Rectangle(
+                (0.7, y + 0.2), 1.2, 0.75, facecolor=_col, edgecolor="none"
+            )
+        )
+        ax_b.text(
+            1.3,
+            y + 0.57,
+            _abbr,
+            color="white",
+            fontweight="bold",
+            fontsize=10,
+            ha="center",
+            va="center",
+        )
+        ax_b.text(
+            2.1, y + 0.65, _name, fontweight="bold", fontsize=10, color=navy
+        )
+        ax_b.text(
+            2.1, y + 0.25, f"Domain: {_desc}", fontsize=8.5, color="#5D6D7E"
+        )
+
+    ax_b.add_patch(
+        patches.FancyBboxPatch(
+            (0.5, 0.5),
+            9.0,
+            1.8,
+            boxstyle="round,pad=0.1,rounding_size=0.2",
+            facecolor="#FEF9E7",
+            edgecolor="#F39C12",
+            linewidth=1.2,
+        )
+    )
+    ax_b.text(
+        0.8,
+        1.8,
+        "Definition of Functional Progression",
+        fontsize=10.5,
+        fontweight="bold",
+        color="#B7950B",
+    )
+    ax_b.text(
+        0.8,
+        1.35,
+        "• Cutoff Window: 2-year post-baseline MRI follow-up",
+        fontsize=9,
+        color="#2C3E50",
+    )
+    ax_b.text(
+        0.8,
+        0.9,
+        "• Progression Threshold: Adjusted z-score ≤ -2.0",
+        fontsize=9,
+        fontweight="bold",
+        color="#C0392B",
+    )
+    ax_b.text(
+        0.8,
+        0.6,
+        "• Binary Target: Progressor vs. Non-Progressor (Independent per test)",
+        fontsize=8.5,
+        color="#566573",
+    )
+
+    # ---------------------------------------------------------
+    # PANEL C: Preprocessing Steps
+    # ---------------------------------------------------------
+    ax_c = _axs[1, 0]
+    ax_c.add_patch(
+        patches.FancyBboxPatch(
+            (0.1, 0.1),
+            9.8,
+            9.8,
+            boxstyle="round,pad=0.1,rounding_size=0.3",
+            facecolor="white",
+            edgecolor=border_gray,
+            linewidth=1.5,
+        )
+    )
+    add_panel_header(ax_c, "Panel C: MRI Preprocessing Steps", accent_purple)
+
+    steps = [
+        (
+            "Step 1: Input Raw Scans",
+            "3D MPRAGE & 3D FLAIR Brain MRI Volumes",
+            "#F4ECF7",
+            accent_purple,
+        ),
+        (
+            "Step 2: Skull-Stripping",
+            "Automated non-brain tissue removal via HD-BET",
+            "#F4ECF7",
+            accent_purple,
+        ),
+        (
+            "Step 3: Spatial Normalization",
+            "Affine registration to MNI152 standard space (1 mm³ isotropic)",
+            "#F4ECF7",
+            accent_purple,
+        ),
+        (
+            "Step 4: Spatial Cropping",
+            "Center-cropped to uniform bounding box (180 × 180 × 180 voxels)",
+            "#F4ECF7",
+            accent_purple,
+        ),
+        (
+            "Step 5: Resampling / Resizing",
+            "Resized via TorchIO to 96 × 96 × 96 voxels for DL training",
+            "#EAEDED",
+            "#7F8C8D",
+        ),
+    ]
+
+    for _i, (_title, _detail, _bg, _border) in enumerate(steps):
+        y = 7.0 - _i * 1.5
+        ax_c.add_patch(
+            patches.FancyBboxPatch(
+                (0.8, y),
+                8.4,
+                1.1,
+                boxstyle="round,pad=0.08,rounding_size=0.15",
+                facecolor=_bg,
+                edgecolor=_border,
+                linewidth=1.2,
+            )
+        )
+        ax_c.text(
+            1.1, y + 0.65, _title, fontweight="bold", fontsize=9.5, color=navy
+        )
+        ax_c.text(1.1, y + 0.25, _detail, fontsize=8.5, color="#424949")
+
+        if i < len(steps) - 1:
+            ax_c.annotate(
+                "",
+                xy=(5.0, y - 0.35),
+                xytext=(5.0, y),
+                arrowprops=dict(arrowstyle="->", color=accent_purple, lw=1.8),
+            )
+
+    # ---------------------------------------------------------
+    # PANEL D: SFCN Architecture & Output
+    # ---------------------------------------------------------
+    ax_d = _axs[1, 1]
+    ax_d.add_patch(
+        patches.FancyBboxPatch(
+            (0.1, 0.1),
+            9.8,
+            9.8,
+            boxstyle="round,pad=0.1,rounding_size=0.3",
+            facecolor="white",
+            edgecolor=border_gray,
+            linewidth=1.5,
+        )
+    )
+    add_panel_header(
+        ax_d, "Panel D: SFCN Architecture & Deliverables", accent_orange
+    )
+
+    ax_d.add_patch(
+        patches.FancyBboxPatch(
+            (0.5, 6.2),
+            9.0,
+            2.2,
+            boxstyle="round,pad=0.1,rounding_size=0.2",
+            facecolor="#FEF5E7",
+            edgecolor=accent_orange,
+            linewidth=1.2,
+        )
+    )
+    ax_d.text(
+        0.8,
+        7.9,
+        "Simple Fully Convolutional Network (SFCN)",
+        fontsize=10.5,
+        fontweight="bold",
+        color=navy,
+    )
+    ax_d.text(
+        0.8,
+        7.4,
+        "• Input: 3D Preprocessed MRI Volume (96 × 96 × 96 voxels)",
+        fontsize=9,
+        color="#2C3E50",
+    )
+    ax_d.text(
+        0.8,
+        6.9,
+        "• Architecture: 3D Conv blocks + Max pooling + Batch normalization",
+        fontsize=9,
+        color="#2C3E50",
+    )
+    ax_d.text(
+        0.8,
+        6.4,
+        "• Fine-tuning: Self-Supervised Learning (SSL) pretrained backbone",
+        fontsize=9,
+        color="#2C3E50",
+    )
+
+    ax_d.add_patch(
+        patches.FancyBboxPatch(
+            (0.5, 3.8),
+            9.0,
+            2.0,
+            boxstyle="round,pad=0.1,rounding_size=0.2",
+            facecolor="#EBF5FB",
+            edgecolor=accent_blue,
+            linewidth=1.2,
+        )
+    )
+    ax_d.text(
+        0.8,
+        5.3,
+        "Model Outputs & Modality Comparisons",
+        fontsize=10.5,
+        fontweight="bold",
+        color=navy,
+    )
+    ax_d.text(
+        0.8,
+        4.8,
+        "• Domain Predictions: Functional progression risk for PST, WST, MDT, CST",
+        fontsize=9,
+        color="#2C3E50",
+    )
+    ax_d.text(
+        0.8,
+        4.3,
+        "• Performance Benchmarks: MPRAGE vs. FLAIR (AUROC & AUPRC)",
+        fontsize=9,
+        color="#2C3E50",
+    )
+
+    ax_d.add_patch(
+        patches.FancyBboxPatch(
+            (0.5, 0.5),
+            9.0,
+            2.9,
+            boxstyle="round,pad=0.1,rounding_size=0.2",
+            facecolor="#F4ECF7",
+            edgecolor=accent_purple,
+            linewidth=1.2,
+        )
+    )
+    ax_d.text(
+        0.8,
+        2.9,
+        "Downstream Evaluation & Explainability",
+        fontsize=10.5,
+        fontweight="bold",
+        color=navy,
+    )
+    ax_d.text(
+        0.8,
+        2.4,
+        "1. Risk Stratification: Youden's J thresholding (High vs. Low Risk)",
+        fontsize=8.8,
+        color="#2C3E50",
+    )
+    ax_d.text(
+        0.8,
+        1.9,
+        "2. Survival Analysis: Kaplan-Meier progression curves & Log-rank tests",
+        fontsize=8.8,
+        color="#2C3E50",
+    )
+    ax_d.text(
+        0.8,
+        1.4,
+        "3. Explainability: Gradient saliency maps mapped to FreeSurfer atlas",
+        fontsize=8.8,
+        color="#2C3E50",
+    )
+    ax_d.text(
+        0.8,
+        0.9,
+        "   (Regional features: Corpus Callosum, Parietal, Frontal lobes, etc.)",
+        fontsize=8.3,
+        color="#566573",
+    )
+
+    plt.tight_layout()
+    plt.savefig("Figure1_Study_Design.png", dpi=300, bbox_inches="tight")
+    plt.show()
+    return
+
+
+@app.cell
+def _(patches, plt):
+    def study_design():
+        import matplotlib.gridspec as gridspec
+        # Set up canvas with modern neutral background
+
+        fig = plt.figure(figsize=(16, 12), dpi=300)
+        fig.patch.set_facecolor("#F4F6F9")
+
+        # Define 2x2 GridSpec layout
+        gs = gridspec.GridSpec(2, 2, figure=fig, wspace=0.15, hspace=0.18)
+
+        # Unified Color Palette
+        primary_dark = "#1A2530"
+        c_blue = "#2980B9"
+        c_teal = "#16A085"
+        c_purple = "#8E44AD"
+        c_orange = "#D35400"
+
+        bg_card = "#FFFFFF"
+        border_card = "#D5D8DC"
+
+        def setup_panel(ax, title, badge_color):
+            ax.set_xlim(0, 100)
+            ax.set_ylim(0, 100)
+            ax.axis("off")
+            # Background Card
+            card = patches.FancyBboxPatch(
+                (0, 0),
+                100,
+                100,
+                boxstyle="round,pad=0,rounding_size=2",
+                facecolor=bg_card,
+                edgecolor=border_card,
+                linewidth=1.5,
+            )
+            ax.add_patch(card)
+            # Header Ribbon
+            header = patches.FancyBboxPatch(
+                (0, 88),
+                100,
+                12,
+                boxstyle="square,pad=0",
+                facecolor=badge_color,
+                edgecolor="none",
+            )
+            ax.add_patch(header)
+            ax.text(
+                3,
+                94,
+                title,
+                color="white",
+                fontsize=12,
+                fontweight="bold",
+                va="center",
+            )
+
+        # ==============================================================================
+        # PANEL A: Cohort Description
+        # ==============================================================================
+        ax_a = fig.add_subplot(gs[0, 0])
+        setup_panel(
+            ax_a,
+            "A. Cohort & Study Design (MS PATHS Multi-Center)",
+            primary_dark,
+        )
+
+        # Subcard 1: Center Distribution
+        ax_a.add_patch(
+            patches.FancyBboxPatch(
+                (3, 63),
+                94,
+                23,
+                boxstyle="round,pad=0,rounding_size=1",
+                facecolor="#EBF5FB",
+                edgecolor="#AED6F1",
+                linewidth=1,
+            )
+        )
+        ax_a.text(
+            6,
+            81,
+            "Multi-Center International Network (10 Sites)",
+            fontsize=10,
+            fontweight="bold",
+            color=primary_dark,
+        )
+
+        centers_us = [
+            "Cleveland Clinic",
+            "Johns Hopkins",
+            "NYU",
+            "OhioHealth",
+            "WashU",
+            "URMC",
+            "Lou Ruvo",
+        ]
+        centers_eu = ["Marburg (DE)", "Vall d'Hebron (ES)", "Dresden (DE)"]
+
+        ax_a.text(
+            6,
+            73,
+            "USA (7 Centers):",
+            fontsize=8,
+            fontweight="bold",
+            color="#1B4F72",
+        )
+        ax_a.text(
+            23, 73, " • ".join(centers_us[:4]), fontsize=7.5, color="#2C3E50"
+        )
+        ax_a.text(
+            23, 67, " • ".join(centers_us[4:]), fontsize=7.5, color="#2C3E50"
+        )
+
+        ax_a.text(
+            6,
+            65,
+            "Europe (3 Centers):",
+            fontsize=8,
+            fontweight="bold",
+            color="#1B4F72",
+        )
+        ax_a.text(
+            25, 65, " • ".join(centers_eu), fontsize=7.5, color="#2C3E50"
+        )
+
+        # Subcard 2: Visual Cohort Split Bar
+        ax_a.add_patch(
+            patches.FancyBboxPatch(
+                (3, 30),
+                94,
+                30,
+                boxstyle="round,pad=0,rounding_size=1",
+                facecolor="#F8F9F9",
+                edgecolor="#D6DBDF",
+                linewidth=1,
+            )
+        )
+        ax_a.text(
+            6,
+            54,
+            "Cohort Stratification & Center Split (Total N = 8,397)",
+            fontsize=10,
+            fontweight="bold",
+            color=primary_dark,
+        )
+
+        bar_y = 42
+        bar_h = 7
+        ax_a.add_patch(
+            patches.Rectangle(
+                (6, bar_y),
+                73.9 * 0.88,
+                bar_h,
+                facecolor="#3498DB",
+                edgecolor="none",
+            )
+        )  # Train
+        ax_a.add_patch(
+            patches.Rectangle(
+                (6 + 73.9 * 0.88, bar_y),
+                18.5 * 0.88,
+                bar_h,
+                facecolor="#F39C12",
+                edgecolor="none",
+            )
+        )  # Val
+        ax_a.add_patch(
+            patches.Rectangle(
+                (6 + (73.9 + 18.5) * 0.88, bar_y),
+                7.6 * 0.88,
+                bar_h,
+                facecolor="#E74C3C",
+                edgecolor="none",
+            )
+        )  # Test
+
+        ax_a.text(
+            6 + (73.9 * 0.88) / 2,
+            bar_y + 3.5,
+            "Train: 6,209 (73.9%)",
+            color="white",
+            fontweight="bold",
+            fontsize=7.5,
+            ha="center",
+            va="center",
+        )
+        ax_a.text(
+            6 + 73.9 * 0.88 + (18.5 * 0.88) / 2,
+            bar_y + 3.5,
+            "Val: 1,553",
+            color="white",
+            fontweight="bold",
+            fontsize=7,
+            ha="center",
+            va="center",
+        )
+        ax_a.text(
+            6 + 92.4 * 0.88 + (7.6 * 0.88) / 2,
+            bar_y + 3.5,
+            "Test: 635",
+            color="white",
+            fontweight="bold",
+            fontsize=6.5,
+            ha="center",
+            va="center",
+        )
+
+        ax_a.text(
+            6,
+            34,
+            "• Split Strategy: Center-level split (Center ID 326 isolated for External Testing)",
+            fontsize=7.5,
+            color="#566573",
+        )
+
+        # Subcard 3: Demographics Grid
+        ax_a.add_patch(
+            patches.FancyBboxPatch(
+                (3, 4),
+                94,
+                23,
+                boxstyle="round,pad=0,rounding_size=1",
+                facecolor="#EAECEE",
+                edgecolor="#BDC3C7",
+                linewidth=1,
+            )
+        )
+        ax_a.text(
+            6,
+            22,
+            "Clinical Characteristics & Imaging Modalities",
+            fontsize=9.5,
+            fontweight="bold",
+            color=primary_dark,
+        )
+
+        demo_items = [
+            ("Age", "45.9 ± 11.9 yrs"),
+            ("Sex", "73.5% Female"),
+            ("Phenotypes", "CIS / RRMS / SPMS / PPMS"),
+            ("MRI Modalities", "3D MPRAGE (T1w) + 3D FLAIR"),
+        ]
+        for i, (label, val) in enumerate(demo_items):
+            x = 6 + (i % 2) * 46
+            y = 15 if i < 2 else 8
+            ax_a.add_patch(
+                patches.FancyBboxPatch(
+                    (x, y),
+                    42,
+                    5.5,
+                    boxstyle="round,pad=0,rounding_size=0.5",
+                    facecolor="white",
+                    edgecolor="#CBD5E1",
+                )
+            )
+            ax_a.text(
+                x + 2,
+                y + 2.75,
+                f"{label}:",
+                fontsize=7.5,
+                fontweight="bold",
+                color="#2C3E50",
+                va="center",
+            )
+            ax_a.text(
+                x + 18,
+                y + 2.75,
+                val,
+                fontsize=7.5,
+                color="#5499C7" if "MRI" in label else "#2E4053",
+                va="center",
+            )
+
+        # ==============================================================================
+        # PANEL B: Functional Assessments (MSPT Domains)
+        # ==============================================================================
+        ax_b = fig.add_subplot(gs[0, 1])
+        setup_panel(
+            ax_b, "B. Functional Assessments (MSPT Domains & Labels)", c_teal
+        )
+
+        tests = [
+            (
+                "PST",
+                "Processing Speed Test",
+                "Cognitive Domain / Information Processing Speed",
+                "#E74C3C",
+            ),
+            (
+                "WST",
+                "Walking Speed Test",
+                "Ambulation & Lower Limb Motor Function",
+                "#E67E22",
+            ),
+            (
+                "MDT",
+                "Manual Dexterity Test",
+                "Upper Limb Fine Motor Coordination",
+                "#27AE60",
+            ),
+            (
+                "CST",
+                "Contrast Sensitivity Test",
+                "Visual Function & Acuity Assessment",
+                "#2980B9",
+            ),
+        ]
+
+        for i, (code, title, desc, col) in enumerate(tests):
+            y = 66 - i * 15
+            ax_b.add_patch(
+                patches.FancyBboxPatch(
+                    (3, y),
+                    94,
+                    12.5,
+                    boxstyle="round,pad=0,rounding_size=1",
+                    facecolor="#E8F8F5",
+                    edgecolor="#A3E4D7",
+                    linewidth=1,
+                )
+            )
+            ax_b.add_patch(
+                patches.FancyBboxPatch(
+                    (5, y + 1.5),
+                    15,
+                    9.5,
+                    boxstyle="round,pad=0,rounding_size=0.8",
+                    facecolor=col,
+                    edgecolor="none",
+                )
+            )
+            ax_b.text(
+                12.5,
+                y + 6.25,
+                code,
+                color="white",
+                fontweight="bold",
+                fontsize=10,
+                ha="center",
+                va="center",
+            )
+            ax_b.text(
+                23,
+                y + 8,
+                title,
+                fontweight="bold",
+                fontsize=9.5,
+                color=primary_dark,
+            )
+            ax_b.text(
+                23,
+                y + 3.5,
+                desc,
+                fontsize=7.8,
+                color="#4A235A" if code == "PST" else "#5D6D7E",
+            )
+
+        # Progression Target Box
+        ax_b.add_patch(
+            patches.FancyBboxPatch(
+                (3, 4),
+                94,
+                20,
+                boxstyle="round,pad=0,rounding_size=1",
+                facecolor="#FEF9E7",
+                edgecolor="#F9E79F",
+                linewidth=1.2,
+            )
+        )
+        ax_b.text(
+            6,
+            19,
+            "Binary Progression Target Definition (2-Year Window)",
+            fontsize=9.5,
+            fontweight="bold",
+            color="#B7950B",
+        )
+
+        ax_b.add_patch(
+            patches.Rectangle((6, 10), 35, 5, facecolor="#E74C3C", alpha=0.85)
+        )  # Progressor
+        ax_b.add_patch(
+            patches.Rectangle((41, 10), 53, 5, facecolor="#2ECC71", alpha=0.85)
+        )  # Non-progressor
+        ax_b.axvline(x=41, ymin=0.1, ymax=0.17, color="black", lw=2, ls="--")
+
+        ax_b.text(
+            23.5,
+            12.5,
+            "PROGRESSOR (Δ z ≤ -2.0)",
+            color="white",
+            fontweight="bold",
+            fontsize=7.2,
+            ha="center",
+            va="center",
+        )
+        ax_b.text(
+            67.5,
+            12.5,
+            "NON-PROGRESSOR / STABLE (Δ z > -2.0)",
+            color="white",
+            fontweight="bold",
+            fontsize=7.2,
+            ha="center",
+            va="center",
+        )
+        ax_b.text(
+            6,
+            6,
+            "• Scores demographically adjusted for age, sex, and baseline performance",
+            fontsize=7.5,
+            color="#566573",
+        )
+
+        # ==============================================================================
+        # PANEL C: Preprocessing Pipeline
+        # ==============================================================================
+        ax_c = fig.add_subplot(gs[1, 0])
+        setup_panel(ax_c, "C. Automated MRI Preprocessing Pipeline", c_purple)
+
+        pipeline_steps = [
+            (
+                "1. Raw MRI Acquisition",
+                "3D MPRAGE & 3D FLAIR • Multi-site scanner scans",
+                "#F4ECF7",
+                c_purple,
+            ),
+            (
+                "2. Skull-Stripping",
+                "HD-BET Automated Tool • Removal of non-brain tissue",
+                "#F4ECF7",
+                c_purple,
+            ),
+            (
+                "3. Spatial Normalization",
+                "MNI152 Standard Space • 1 mm³ isotropic affine reg.",
+                "#F4ECF7",
+                c_purple,
+            ),
+            (
+                "4. Spatial Cropping",
+                "Center Cropping • 180 × 180 × 180 voxels",
+                "#F4ECF7",
+                c_purple,
+            ),
+            (
+                "5. Deep Learning Input",
+                "TorchIO Resampling • 96 × 96 × 96 voxels volume",
+                "#EBDEF0",
+                c_purple,
+            ),
+        ]
+
+        for i, (title, desc, bg, border) in enumerate(pipeline_steps):
+            y = 70 - i * 16.5
+            ax_c.add_patch(
+                patches.FancyBboxPatch(
+                    (6, y),
+                    88,
+                    12.5,
+                    boxstyle="round,pad=0,rounding_size=1",
+                    facecolor=bg,
+                    edgecolor=border,
+                    linewidth=1.2,
+                )
+            )
+
+            ax_c.add_patch(
+                patches.Circle(
+                    (12, y + 6.25), 4, facecolor=border, edgecolor="none"
+                )
+            )
+            ax_c.text(
+                12,
+                y + 6.25,
+                str(i + 1),
+                color="white",
+                fontweight="bold",
+                fontsize=9.5,
+                ha="center",
+                va="center",
+            )
+
+            ax_c.text(
+                19,
+                y + 7.5,
+                title,
+                fontweight="bold",
+                fontsize=9,
+                color=primary_dark,
+            )
+            ax_c.text(19, y + 3.5, desc, fontsize=7.5, color="#566573")
+
+            if i < len(pipeline_steps) - 1:
+                ax_c.annotate(
+                    "",
+                    xy=(50, y - 3.5),
+                    xytext=(50, y),
+                    arrowprops=dict(
+                        arrowstyle="->",
+                        color=c_purple,
+                        lw=2,
+                        mutation_scale=10,
+                    ),
+                )
+
+        # ==============================================================================
+        # PANEL D: SFCN Architecture & Downstream Workflow
+        # ==============================================================================
+        ax_d = fig.add_subplot(gs[1, 1])
+        setup_panel(
+            ax_d, "D. SFCN Model Architecture & Evaluation Workflow", c_orange
+        )
+
+        # Model Block
+        ax_d.add_patch(
+            patches.FancyBboxPatch(
+                (3, 58),
+                94,
+                28,
+                boxstyle="round,pad=0,rounding_size=1",
+                facecolor="#FEF5E7",
+                edgecolor="#F8C471",
+                linewidth=1.2,
+            )
+        )
+        ax_d.text(
+            6,
+            80,
+            "Simple Fully Convolutional Network (SFCN-3D)",
+            fontsize=10,
+            fontweight="bold",
+            color=primary_dark,
+        )
+
+        # Visual Architecture Flow
+        ax_d.add_patch(
+            patches.FancyBboxPatch(
+                (6, 62),
+                22,
+                14,
+                boxstyle="round,pad=0,rounding_size=0.6",
+                facecolor="white",
+                edgecolor="#F39C12",
+            )
+        )
+        ax_d.text(
+            17,
+            69,
+            "3D Volume\n96³ Voxels",
+            fontsize=7.5,
+            fontweight="bold",
+            ha="center",
+            va="center",
+            color=primary_dark,
+        )
+
+        ax_d.annotate(
+            "",
+            xy=(34, 69),
+            xytext=(28, 69),
+            arrowprops=dict(arrowstyle="->", color=c_orange, lw=1.5),
+        )
+
+        ax_d.add_patch(
+            patches.FancyBboxPatch(
+                (34, 62),
+                32,
+                14,
+                boxstyle="round,pad=0,rounding_size=0.6",
+                facecolor="white",
+                edgecolor="#F39C12",
+            )
+        )
+        ax_d.text(
+            50,
+            69,
+            "3D Conv + MaxPool\n+ SSL Pretraining",
+            fontsize=7.5,
+            fontweight="bold",
+            ha="center",
+            va="center",
+            color=primary_dark,
+        )
+
+        ax_d.annotate(
+            "",
+            xy=(72, 69),
+            xytext=(66, 69),
+            arrowprops=dict(arrowstyle="->", color=c_orange, lw=1.5),
+        )
+
+        ax_d.add_patch(
+            patches.FancyBboxPatch(
+                (72, 62),
+                22,
+                14,
+                boxstyle="round,pad=0,rounding_size=0.6",
+                facecolor="white",
+                edgecolor="#F39C12",
+            )
+        )
+        ax_d.text(
+            83,
+            69,
+            "P(Progression)\n0.0 - 1.0",
+            fontsize=7.5,
+            fontweight="bold",
+            ha="center",
+            va="center",
+            color="#C0392B",
+        )
+
+        pillars = [
+            (
+                "1. Risk Stratification",
+                "Youden's J Threshold\nHigh vs. Low Risk cutoff",
+                "#EBF5FB",
+                c_blue,
+            ),
+            (
+                "2. Time-to-Event",
+                "Kaplan-Meier Curves\nLog-rank test separation",
+                "#E8F8F5",
+                c_teal,
+            ),
+            (
+                "3. Explainability",
+                "Gradient Saliency Maps\nFreeSurfer 7.4.1 Atlas",
+                "#F4ECF7",
+                c_purple,
+            ),
+        ]
+
+        for i, (p_title, p_desc, p_bg, p_col) in enumerate(pillars):
+            x = 3 + i * 31.8
+            ax_d.add_patch(
+                patches.FancyBboxPatch(
+                    (x, 4),
+                    30.4,
+                    50,
+                    boxstyle="round,pad=0,rounding_size=1",
+                    facecolor=p_bg,
+                    edgecolor=p_col,
+                    linewidth=1.2,
+                )
+            )
+
+            ax_d.add_patch(
+                patches.FancyBboxPatch(
+                    (x, 44), 30.4, 10, boxstyle="square,pad=0", facecolor=p_col
+                )
+            )
+            ax_d.text(
+                x + 15.2,
+                49,
+                p_title,
+                color="white",
+                fontweight="bold",
+                fontsize=7.8,
+                ha="center",
+                va="center",
+            )
+
+            lines = p_desc.split("\n")
+            ax_d.text(
+                x + 15.2,
+                34,
+                lines[0],
+                fontweight="bold",
+                fontsize=7.5,
+                ha="center",
+                color=primary_dark,
+            )
+            ax_d.text(
+                x + 15.2,
+                26,
+                lines[1],
+                fontsize=7,
+                ha="center",
+                color="#566573",
+            )
+
+            if i == 0:
+                ax_d.text(
+                    x + 15.2,
+                    14,
+                    "Risk Score ≥ J\n➔ High Risk",
+                    fontsize=7.2,
+                    fontweight="bold",
+                    color="#C0392B",
+                    ha="center",
+                )
+            elif i == 1:
+                ax_d.text(
+                    x + 15.2,
+                    14,
+                    "P < 0.001\nχ² = 63.70",
+                    fontsize=7.2,
+                    fontweight="bold",
+                    color="#16A085",
+                    ha="center",
+                )
+            else:
+                ax_d.text(
+                    x + 15.2,
+                    14,
+                    "Corpus Callosum\nFrontal / Parietal",
+                    fontsize=7,
+                    fontweight="bold",
+                    color="#8E44AD",
+                    ha="center",
+                )
+
+        plt.tight_layout()
+        plt.savefig("Figure1_Study_Design_Visual.svg")
+        plt.show()
+
+    study_design()
     return
 
 
