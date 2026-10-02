@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.24.2"
 app = marimo.App(width="full")
 
 
@@ -21,6 +21,7 @@ def setup_1():
         fisher_exact,
         ttest_ind,
         chisquare,
+        t,
     )
 
     tests = ["pst", "mdt", "wst", "cst"]
@@ -77,6 +78,7 @@ def setup_1():
         np,
         pd,
         progression_col,
+        t,
         tests,
     )
 
@@ -106,6 +108,7 @@ def characteristics(
     np,
     pd,
     progression_col,
+    t,
     tests,
 ):
     demographics = {}
@@ -115,9 +118,45 @@ def characteristics(
     _sex_f = len(baseline_characteristics_df.query('sex == "female"'))
     demographics["sex"] = [_sex_ds, f"{_sex_f} ({_sex_f / _sex_ds:0.2%})"]
 
+    # Calculate the 95% confidence interval for age
+    n = len(baseline_characteristics_df.query("age.notnull()"))
+    mean_age = baseline_characteristics_df.age.mean()
+    std_age = baseline_characteristics_df.age.std()
+    sem = std_age / np.sqrt(n)  # Standard error of the mean
+
+    def ci(df, column):
+        """
+        Calculate the 95% confidence interval for a numeric column in a DataFrame.
+
+        Parameters:
+        df (pd.DataFrame): The input DataFrame
+        column (str): The column name to calculate CI for
+
+        Returns:
+        str: Formatted string: "mean (lower_CI - upper_CI)"
+        """
+        # Drop null values
+        data = df[column].dropna()
+
+        if len(data) == 0:
+            return "0 (0.0 - 0.0)"  # Handle empty data
+
+        mean_val = data.mean()
+        std_val = data.std()
+        n = len(data)
+        sem = std_val / np.sqrt(n)
+
+        # Compute 95% CI using t-distribution
+        ci_lower, ci_upper = t.interval(
+            0.95, df=n - 1, loc=mean_val, scale=sem
+        )
+
+        return f"{mean_val:0.1f} [{ci_lower:0.1f} - {ci_upper:0.1f}]"
+
     demographics["age"] = [
         len(baseline_characteristics_df.query("age.notnull()")),
-        f"{baseline_characteristics_df.age.mean():0.1f} ± {baseline_characteristics_df.age.std():0.2f}",
+        # f"{baseline_characteristics_df.age.mean():0.1f} ± {baseline_characteristics_df.age.std():0.2f}",
+        ci(baseline_characteristics_df, "age"),
     ]
     demographics["mstype"] = [
         len(baseline_characteristics_df.query("mstype.notnull()")),
@@ -126,7 +165,8 @@ def characteristics(
 
     demographics["pdds"] = [
         len(baseline_characteristics_df.query("pdds_scr.notnull()")),
-        f"{baseline_characteristics_df.pdds_scr.mean():0.1f} ± {baseline_characteristics_df.pdds_scr.std():0.2f}",
+        # f"{baseline_characteristics_df.pdds_scr.mean():0.1f} ± {baseline_characteristics_df.pdds_scr.std():0.2f}",
+        ci(baseline_characteristics_df, "pdds_scr"),
     ]
 
     demographics["mstype_cis"] = [
@@ -235,7 +275,8 @@ def characteristics(
             )
         )
         demographics["age"].append(
-            f"{baseline_characteristics_df.query('dataset== @ds').age.mean():0.1f} ± {baseline_characteristics_df.query('dataset== @ds').age.std():0.2f}"
+            # f"{baseline_characteristics_df.query('dataset== @ds').age.mean():0.1f} ± {baseline_characteristics_df.query('dataset== @ds').age.std():0.2f}"
+            ci(baseline_characteristics_df.query("dataset== @ds"), "age")
         )
 
         if ds in ["validation", "external test"]:
@@ -271,7 +312,8 @@ def characteristics(
             )
         )
         demographics["pdds"].append(
-            f"{baseline_characteristics_df.query('dataset == @ds').pdds_scr.mean():0.1f} ± {baseline_characteristics_df.query('dataset == @ds').pdds_scr.std():0.2f}"
+            # f"{baseline_characteristics_df.query('dataset == @ds').pdds_scr.mean():0.1f} ± {baseline_characteristics_df.query('dataset == @ds').pdds_scr.std():0.2f}"
+            ci(baseline_characteristics_df.query("dataset == @ds"), "pdds_scr")
         )
 
         if ds in ["validation", "external test"]:
@@ -296,13 +338,19 @@ def characteristics(
                 )
             )
         )
-        demographics["mstype_cis"].append(f"{
-            100.0 * 
-            len(baseline_characteristics_df.query('dataset==@ds and mstype == "Clinically Isolated Syndrome"')) / 
-            len(baseline_characteristics_df.query('dataset==@ds')):0.2f}%"
+        demographics["mstype_cis"].append(
+            f"{
+                100.0
+                * len(
+                    baseline_characteristics_df.query(
+                        'dataset==@ds and mstype == "Clinically Isolated Syndrome"'
+                    )
+                )
+                / len(
+                    baseline_characteristics_df.query('dataset==@ds')
+                ):0.2f}%"
         )
 
-    
         if ds in ["validation", "external test"]:
             # TODO: add here mann-whitney-u
             _cis_training = np.array(
@@ -345,13 +393,19 @@ def characteristics(
                 )
             )
         )
-        demographics["mstype_prms"].append(f"{
-            100.0 * 
-            len(baseline_characteristics_df.query('dataset==@ds and mstype == "Progressive Relapsing MS"')) / 
-            len(baseline_characteristics_df.query('dataset==@ds')):0.2f}%"
+        demographics["mstype_prms"].append(
+            f"{
+                100.0
+                * len(
+                    baseline_characteristics_df.query(
+                        'dataset==@ds and mstype == "Progressive Relapsing MS"'
+                    )
+                )
+                / len(
+                    baseline_characteristics_df.query('dataset==@ds')
+                ):0.2f}%"
         )
 
-    
         if ds in ["validation", "external test"]:
             # TODO: add here mann-whitney-u
             _cis_training = np.array(
@@ -397,10 +451,17 @@ def characteristics(
             )
         )
 
-        demographics["mstype_rrms"].append(f"{
-            100.0 * 
-            len(baseline_characteristics_df.query('dataset==@ds and mstype == "Relapsing Remitting MS"')) / 
-            len(baseline_characteristics_df.query('dataset==@ds')):0.2f}%"
+        demographics["mstype_rrms"].append(
+            f"{
+                100.0
+                * len(
+                    baseline_characteristics_df.query(
+                        'dataset==@ds and mstype == "Relapsing Remitting MS"'
+                    )
+                )
+                / len(
+                    baseline_characteristics_df.query('dataset==@ds')
+                ):0.2f}%"
         )
         if ds in ["validation", "external test"]:
             # TODO: add here mann-whitney-u
@@ -444,10 +505,17 @@ def characteristics(
                 )
             )
         )
-        demographics["mstype_spms"].append(f"{
-            100.0 * 
-            len(baseline_characteristics_df.query('dataset==@ds and mstype == "Secondary Progressive MS"')) / 
-            len(baseline_characteristics_df.query('dataset==@ds')):0.2f}%"
+        demographics["mstype_spms"].append(
+            f"{
+                100.0
+                * len(
+                    baseline_characteristics_df.query(
+                        'dataset==@ds and mstype == "Secondary Progressive MS"'
+                    )
+                )
+                / len(
+                    baseline_characteristics_df.query('dataset==@ds')
+                ):0.2f}%"
         )
         if ds in ["validation", "external test"]:
             # TODO: add here mann-whitney-u
@@ -491,12 +559,19 @@ def characteristics(
                 )
             )
         )
-        demographics["mstype_ppms"].append(f"{
-            100.0 * 
-            len(baseline_characteristics_df.query('dataset==@ds and mstype =="Primary Progressive MS"')) / 
-            len(baseline_characteristics_df.query('dataset==@ds')):0.2f}%"
+        demographics["mstype_ppms"].append(
+            f"{
+                100.0
+                * len(
+                    baseline_characteristics_df.query(
+                        'dataset==@ds and mstype =="Primary Progressive MS"'
+                    )
+                )
+                / len(
+                    baseline_characteristics_df.query('dataset==@ds')
+                ):0.2f}%"
         )
-    
+
         if ds in ["validation", "external test"]:
             _ppms_training = np.array(
                 [
@@ -963,7 +1038,7 @@ def _(batchsize, eval_dir, imagesize, join, pd, tests):
     pd.options.display.float_format = "{:.3f}".format
     sensitivity_df[
         ["modality", "test", "Sensitivity", "Specitivity", "PPV", "NPV"]
-    ].to_excel('sensitivity.xlsx')
+    ].to_excel("sensitivity.xlsx")
     sensitivity_df[
         ["modality", "test", "Sensitivity", "Specitivity", "PPV", "NPV"]
     ]
