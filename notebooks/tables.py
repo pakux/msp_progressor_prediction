@@ -5,7 +5,8 @@ app = marimo.App(width="full")
 
 
 @app.cell
-def _():
+def _(u):
+    u
     return
 
 

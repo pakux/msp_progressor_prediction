@@ -58,6 +58,17 @@ def setup_1(mo):
     from scipy.stats import ks_2samp
     from sklearn.metrics import auc, precision_recall_curve, roc_curve
     from torch.utils.data import DataLoader
+    from scipy.stats import (
+        chi2_contingency,
+        mannwhitneyu,
+        fisher_exact,
+        ttest_ind,
+        chisquare,
+        t,
+    )
+
+    import geopandas as gpd
+    import geodatasets
 
     # Define Paths and Filenames for further work / from previous work with BrainTrain
     # braindraindir = "../../../RadBrainDL_msp/code/BrainTrain/"  # source path f BrainTrain 🧠🚆
@@ -181,6 +192,7 @@ def setup_1(mo):
         sfcn_cls,
         sns,
         spidy,
+        t,
         tensor_dir_test,
         test_order,
         torch,
@@ -469,6 +481,15 @@ def _(columns, data_dir, dataset_order, join, patientstable, pd):
         pat_df["dataset"], categories=dataset_order, ordered=True
     )
 
+    pat_df["mstype"] = pat_df["mstype"].replace("rr", "Relapsing Remitting MS")
+    pat_df["mstype"] = pat_df["mstype"].replace(
+        "sp", "Secondary Progressive MS"
+    )
+    pat_df["mstype"] = pat_df["mstype"].replace("pp", "Primary Progressive MS")
+    pat_df["mstype"] = pat_df["mstype"].replace(
+        "Secondary Progressing MS", "Secondary Progressive MS"
+    )
+
     len(pat_df.mpi.unique())
     return (pat_df,)
 
@@ -553,10 +574,12 @@ def _(pat_df, pd, plt, sns):
 
 
 @app.cell(hide_code=True)
-def _(color_female, color_male, pat_df, plt):
-    def draw_pie(df, column, colors=None):
+def _(color_female, color_male, np, pat_df, plt):
+    def draw_pie(
+        df, column, colors=None, output_file=None, show_keys=False, size=2
+    ):
         # Create the donut chart
-        fig, ax = plt.subplots(figsize=(2, 2))
+        fig, ax = plt.subplots(figsize=(size, size))
 
         data = df.groupby(column).agg({column: "count"}).to_dict()[column]
 
@@ -564,18 +587,140 @@ def _(color_female, color_male, pat_df, plt):
         if colors is None:
             colors = ["#1f77b4", "#ff7f0e"]  # Blau und Orange (neutral)
 
+        # Prepare labels with both counts and percentages
+        labels = [
+            f"{key if show_keys else ''}{value}\n ({value / sum(data.values()) * 100:.1f}%)"
+            for key, value in data.items()
+        ]
+
         # Create the pie chart with a hole (donut effect)
-        ax.pie(
+        wedges, texts, autotexts = ax.pie(
             data.values(),
-            labels=data.keys(),
-            autopct="%1.1f%%",  # Show percentages
+            labels=labels,
+            autopct="",  # Show percentages
+            # pctdistance=0.65,  # Position percentage inside the donut
             startangle=90,  # Start from top
-            pctdistance=0.65,  # Position percentage inside the donut
+            # labeldistance=0.5,  # Position percentage inside the donut
+            textprops={
+                "fontsize": 12,
+            },
+            wedgeprops=dict(
+                width=0.7, edgecolor="white"
+            ),  # Create the donut hole
+            colors=colors,
+            # rotatelabels=True,
+        )
+
+        # Center the labels within each wedge
+        for text, wedge in zip(texts, wedges):
+            # Get the center angle of the wedge
+            theta1, theta2 = wedge.theta1, wedge.theta2
+            center_angle = (theta1 + theta2) / 2
+
+            # Convert angle to radians
+            center_angle_rad = np.radians(center_angle)
+
+            # Calculate position (0.5 is halfway between center and edge)
+            r = 0.5 * 0.7 + 0.2  # 0.7 is the wedgeprops width
+            x = r * np.cos(center_angle_rad)
+            y = r * np.sin(center_angle_rad)
+
+            # Set the text position
+            text.set_position((x, y))
+
+            # Calculate the angle to rotate the text to be horizontal
+            # We want the text to be perpendicular to the radius
+            rotation = (
+                center_angle + 90 if center_angle <= 180 else center_angle - 90
+            )
+            text.set_rotation(rotation)
+
+            # Center the text horizontally and vertically
+            text.set_ha("center")
+            text.set_va("center")
+
+        # Add a circle at the center to create the donut effect
+        centre_circle = plt.Circle((0, 0), 0.2, fc="white")
+        ax.add_artist(centre_circle)
+
+        # Equal aspect ratio ensures that pie is drawn as a circle
+        ax.axis("equal")
+
+        # Title
+        # plt.title('Sex Distribution in Dataset', fontsize=16, fontweight='bold', pad=20)
+
+        # Show the plot
+        if not output_file is None:
+            plt.savefig(output_file)
+        plt.show()
+
+    draw_pie(
+        pat_df.query('sex in ["female", "male"]'),
+        "sex",
+        colors=[color_female, color_male],
+        output_file="sex_distribution_all.svg",
+    )
+    draw_pie(
+        pat_df.query('dataset=="training" and sex in ["female", "male"]'),
+        "sex",
+        colors=[color_female, color_male],
+        output_file="sex_distribution_training.svg",
+    )
+    draw_pie(
+        pat_df.query('dataset=="validation" and sex in ["female", "male"]'),
+        "sex",
+        colors=[color_female, color_male],
+        output_file="sex_distribution_validation.svg",
+    )
+    draw_pie(
+        pat_df.query('dataset=="test" and sex in ["female", "male"]'),
+        "sex",
+        colors=[color_female, color_male],
+        output_file="sex_distribution_test.svg",
+    )
+    return
+
+
+@app.cell
+def _(pat_df):
+    pat_df.mstype.unique()
+    return
+
+
+@app.cell
+def _(pat_df, pd, plt):
+    def draw_pie2(
+        df, column, colors=None, output_file=None, show_keys=False, size=2
+    ):
+        # Create the donut chart
+        fig, ax = plt.subplots(figsize=(size, size))
+
+        data = df.groupby(column).agg({column: "count"}).to_dict()[column]
+
+        # Standardfarben, falls keine Farben angegeben wurden
+        # if colors is None:
+        #    colors = ["#1f77b4", "#ff7f0e"]  # Blau und Orange (neutral)
+
+        # Prepare labels with both counts and percentages
+        labels = [
+            f"{key + '\n' if show_keys else ''}{value} ({value / sum(data.values()) * 100:.1f}%)"
+            for key, value in data.items()
+        ]
+
+        # Create the pie chart with a hole (donut effect)
+        wedges, texts, autotexts = ax.pie(
+            data.values(),
+            labels=labels,
+            autopct="",  # Show percentages
+            # pctdistance=0.65,  # Position percentage inside the donut
+            startangle=90,  # Start from top
+            labeldistance=1,  # Position percentage inside the donut
             textprops={"fontsize": 12},
             wedgeprops=dict(
                 width=0.7, edgecolor="white"
             ),  # Create the donut hole
             colors=colors,
+            rotatelabels=True,
         )
 
         # Add a circle at the center to create the donut effect
@@ -589,12 +734,31 @@ def _(color_female, color_male, pat_df, plt):
         # plt.title('Sex Distribution in Dataset', fontsize=16, fontweight='bold', pad=20)
 
         # Show the plot
+        if not output_file is None:
+            plt.savefig(output_file)
         plt.show()
 
-    draw_pie(
-        pat_df.query('sex in ["female", "male"]'),
-        "sex",
-        colors=[color_female, color_male],
+    _pat_df = pd.DataFrame(pat_df)
+    mstype_short_names = {
+        "RRMS": "Relapsing Remitting MS",
+        "SPMS": "Secondary Progressive MS",
+        "PPMS": "Primary Progressive MS",
+        "CIS": "Clinically Isolated Syndrome",
+        "PRMS": "Progressive Relapsing MS",
+        "No MS": "No CIS or MS Diagnosis",
+    }
+
+    _pat_df = _pat_df.query('mstype  != "unknown"')
+
+    for shortname, longname in mstype_short_names.items():
+        _pat_df.loc[_pat_df["mstype"] == longname, "mstype"] = shortname
+
+    draw_pie2(
+        _pat_df.query('sex in ["female", "male"]'),
+        "mstype",
+        show_keys=True,
+        size=4,
+        output_file="mstype_distribution_all.svg",
     )
     return
 
@@ -765,6 +929,11 @@ def _(color_female, color_male, ks_2samp, pat_df, plt, sns):
 
     plt.savefig("dataset_age_distribution.svg")
     plt.show()
+    return
+
+
+@app.cell
+def _():
     return
 
 
@@ -2474,7 +2643,45 @@ def _(mo):
 
 
 @app.cell
-def _(order_regions_reg, order_regions_tracts, pd, plt, sns, test_order):
+def _(
+    np,
+    order_regions_reg,
+    order_regions_tracts,
+    pd,
+    plt,
+    sns,
+    t,
+    test_order,
+):
+    def ci(df, column):
+        """
+        Calculate the 95% confidence interval for a numeric column in a DataFrame.
+
+        Parameters:
+        df (pd.DataFrame): The input DataFrame
+        column (str): The column name to calculate CI for
+
+        Returns:
+        str: Formatted string: "mean (lower_CI - upper_CI)"
+        """
+        # Drop null values
+        data = df[column].dropna()
+
+        if len(data) == 0:
+            return "0 (0.0 - 0.0)"  # Handle empty data
+
+        mean_val = data.mean()
+        std_val = data.std()
+        n = len(data)
+        sem = std_val / np.sqrt(n)
+
+        # Compute 95% CI using t-distribution
+        ci_lower, ci_upper = t.interval(
+            0.95, df=n - 1, loc=mean_val, scale=sem
+        )
+
+        return f"{mean_val:0.3f} [{ci_lower:0.3f} - {ci_upper:0.3f}]"
+
     # read region means
     fsregions_df = pd.read_csv(
         "region_means.tsv", sep="\t", dtype={"subject": str}
@@ -2485,8 +2692,17 @@ def _(order_regions_reg, order_regions_tracts, pd, plt, sns, test_order):
 
     fsregions_molten_df = fsregions_df.groupby(
         by=["neurotes", "modality", "region"]
-    ).aggregate({"mean_intensity": ["mean", "std"]})
+    ).aggregate(
+        {
+            "mean_intensity": [
+                "mean",
+                "std",
+                lambda x: ci(pd.DataFrame(x), "mean_intensity"),
+            ]
+        }
+    )
     # fsregions_molten_df.reset_index(inplace=True)
+
     print(fsregions_molten_df)
 
     fsgrid = sns.FacetGrid(
