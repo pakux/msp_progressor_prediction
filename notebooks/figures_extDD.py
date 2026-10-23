@@ -1294,7 +1294,7 @@ def _(
             _axs[_x][_y].set_title("")
 
     plt.tight_layout()
-    plt.savefig(join(output_dir, "auroc_prc.svg"))
+    plt.savefig(join(output_dir, "extdd_auroc_prc.svg"))
 
     plt.show()
     return
@@ -1487,7 +1487,7 @@ def _(
             _axs[_x][_y].set_title("")
 
     plt.tight_layout()
-    plt.savefig(join(output_dir, "auroc_prc_training.svg"))
+    plt.savefig(join(output_dir, "extdd_auroc_prc_training.svg"))
 
     plt.show()
     return
@@ -2141,8 +2141,8 @@ def _(
 
     display_axes_grid(_t1figs, _flairfigs)
 
-    plt.savefig(join(output_dir, "kmplots_all_dataset-training.svg"))
-    plt.savefig(join(output_dir, "kmplots_all_dataset-training.png"))
+    plt.savefig(join(output_dir, "extDD_kmplots_all_dataset-training.svg"))
+    plt.savefig(join(output_dir, "extDD_kmplots_all_dataset-training.png"))
     plt.show()
     return
 

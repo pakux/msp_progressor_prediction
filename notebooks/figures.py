@@ -1005,23 +1005,14 @@ def _(pat_df, plt, sns):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Figure 1: Study Design
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Data distribution (Histograms for PST, WST, MDT, CST)
-
-    Here we could include Barplots (maybe stacked) for each of the Progressors/NonProgressors
+    ## show Progressors
     """)
     return
 
 
 @app.cell
-def _():
+def _(pat_df):
+    pat_df.progressors_wst
     return
 
 
@@ -1121,6 +1112,11 @@ def _(mo):
     """
 
     mo.mermaid(diagram=diagram)
+    return
+
+
+@app.cell
+def _():
     return
 
 

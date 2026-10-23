@@ -5,12 +5,6 @@ app = marimo.App(width="full")
 
 
 @app.cell
-def _(u):
-    u
-    return
-
-
-@app.cell
 def setup_1():
     import numpy as np
     import marimo as mo
@@ -1217,7 +1211,7 @@ def _(batchsize, eval_dir, imagesize, join, pd, tests):
         + " → High Risk"
     )
 
-    # ✅ Step 1: Round all numeric columns to 4 decimal places
+    # Round all numeric columns to 4 decimal places
     # Select only numeric columns
     numeric_cols = youden_df.select_dtypes(include="number").columns
 
@@ -1228,21 +1222,17 @@ def _(batchsize, eval_dir, imagesize, join, pd, tests):
     return
 
 
-@app.cell
-def _():
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## DeLongs Test
+    ## Actual progressors
     """)
     return
 
 
 @app.cell
-def _():
+def _(progression_col):
+    progression_col()
     return
 
 
