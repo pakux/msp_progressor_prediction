@@ -1,15 +1,16 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(
     width="full",
-    app_title="Tablos extEU",
+    app_title="Tables extEU",
     auto_download=["html", "ipynb"],
 )
 
 
 @app.cell
 def setup_1():
+    import yaml
     import numpy as np
     import marimo as mo
     import pandas as pd
@@ -23,15 +24,22 @@ def setup_1():
         t,
     )
 
+
+    ### Read config for paths
+    with open('dirs.yaml', 'r') as f:
+        conf = yaml.safe_load(f)
+
+    root_dir = abspath(conf['paths']['projectroot'])
+
+
     tests = ["pst", "mdt", "wst", "cst"]
     models = ["sfcn", "ssl-finetuned", "lora", "dense", "swin"]
 
     batchsize = 16
     imagesize = 96
 
-    eval_dir = (
-        "/mnt/bulk-mars/paulkuntke/RadBrainDL_msp/data_extEU/evaluations/"
-    )
+    eval_dir = join(root_dir, "data_extEU", "evaluations")
+
 
     baseline_characteristics_df = pd.read_csv("baseline_characteristics.csv")
     baseline_characteristics_df.mstype
@@ -1011,7 +1019,7 @@ def _(batchsize, eval_dir, imagesize, join, pd, tests):
                     "metrics",
                     "sfcn",
                     "test",
-                    "mspaths2",
+                    "mspaths",
                     _modality,
                     f"worst_progressor_2ycutoff_{_test}_2z_e1000_b{batchsize}_im{imagesize}.csv",
                 )
@@ -1225,6 +1233,11 @@ def _(batchsize, eval_dir, imagesize, join, pd, tests):
     youden_df[numeric_cols] = youden_df[numeric_cols].round(4)
 
     youden_df
+    return
+
+
+@app.cell
+def _():
     return
 
 
