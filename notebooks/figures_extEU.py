@@ -61,7 +61,8 @@ def setup_1(mo):
     from nilearn import image
     from nilearn.plotting import plot_anat, plot_img, plot_roi, plot_stat_map
     from scipy.stats import ks_2samp
-    from sklearn.metrics import auc, precision_recall_curve, roc_curve
+    from sklearn.metrics import auc, precision_recall_curve, roc_curve, confusion_matrix
+
     from torch.utils.data import DataLoader
     from scipy.stats import (
         chi2_contingency,
@@ -176,6 +177,7 @@ def setup_1(mo):
         color_male,
         columns,
         conf,
+        confusion_matrix,
         data_dir,
         dataloader,
         dataset_order,
@@ -4532,6 +4534,7 @@ def _(
         hspace=0.2,  # Height space between plots
     )
 
+
     plt.subplots_adjust(top=0.85, bottom=0.15, left=0.1, right=0.9, hspace=0)
 
     for _row in range(3):
@@ -4574,7 +4577,7 @@ def _(
 
     _site_id = 326
     _site_pats = list(pat_df.query(f'site == "{_site_id}"').mpi)
-    print(df_t1w[df_t1w.eid.isin(_site_pats)])
+
     _fig.add_subplot(plot_roc_curve(df_t1w[df_t1w.eid.isin(_site_pats)], ax=_axs[1][1], figure=_fig))
     _fig.add_subplot(plot_prc_curve(df_t1w[df_t1w.eid.isin(_site_pats)], ax=_axs[2][1], figure=_fig))
     _fig.add_subplot(plot_roc_curve(df_flair[df_flair.eid.isin(_site_pats)], ax=_axs[1][2], figure=_fig))
@@ -4584,8 +4587,11 @@ def _(
         for _y in [1, 2]:
             _axs[_x][_y].set_title("")
 
+    _fig.suptitle(f"Site {_site_id}", fontsize=32, y=0.95)
+
+
     plt.tight_layout()
-    plt.savefig(join(output_dir, "auroc_prc.svg"))
+    plt.savefig(join(output_dir, f"auroc_prc_site-{_site_id}.svg"))
 
     plt.show()
     return
@@ -4600,108 +4606,138 @@ def _(mo):
 
 
 @app.cell
-def _(columns, join, pat_df, pd, scores_dir):
+def _(
+    columns,
+    confusion_matrix,
+    draw_heatmap,
+    join,
+    output_dir,
+    pat_df,
+    pd,
+    plt,
+    scores_dir,
+    sns,
+    test_order,
+):
     _site_id = 326
     _site_pats = list(pat_df.query(f'site == "{_site_id}"').mpi)
 
-    for _modality in ["t1w", "flair"]:
-        for _colname in columns:
-            _df = pd.read_csv(
-                join(
-                    scores_dir,
-                    "sfcn",
-                    "test",
-                    "mspaths",
-                    _modality,
-                    f"{_colname}_e1000_b16_im96.csv"
-                )
-            )
+    def create_cm(modality:str, colname:str, id_list=None, id_col="eid", y_true:str="label", y_pred:str="pred_class") -> pd.DataFrame: 
+        """
+        Parameters
+        ----------
 
-            _df = _df[_df.eid.isin(_site_pats)]
+        modality: str
+            t1w or flair
+        colname: str
+            filename for csv
+        id_list: list of str
+            list of subjects (whitelist)
+        id_col: str
+            colname of ids 
+        y_true: str
+            colname of true values
+        y_pred: str
+            colname of predicted values
+        
+        """
+        df = pd.read_csv(
+            join(
+                scores_dir,
+                "sfcn",
+                "test",
+                "mspaths",
+                modality,
+                f"{colname}_e1000_b16_im96.csv"
+            )
+        )
+    
+        if id_list is not None:
+            df = df[df[id_col].isin(id_list)]  # filter for patients in id_list
+
+        tn, fp, fn, tp = confusion_matrix(df[y_true], df[y_pred]).ravel()
+
+        confusion_df = pd.DataFrame({
+            'modality': modality,
+            'neurotest': colname.split("_")[3].upper(),
+            'tn': [tn],
+            'fp': [fp],
+            'fn': [fn],
+            'tp': [tp]
+        })
+
+        return confusion_df
+
     
 
+    
 
-    # cms_df = pd.DataFrame()
+    _cms_df = pd.DataFrame()
+    for _modality in ["t1w", "flair"]:
+        for _colname in columns:
+            _cms_df = pd.concat((_cms_df, create_cm(_modality, _colname, id_list=_site_pats)), ignore_index=True)
 
-    # for _modality in ["t1w", "flair"]:
-    #     for _colname in columns:
-    #         _df = pd.read_csv(
-    #             join(
-    #                 evaluations_dir,
-    #                 "metrics",
-    #                 "sfcn",
-    #                 "test",
-    #                 "mspaths",
-    #                 _modality,
-    #                 f"{_colname}_e1000_b16_im96.csv",
-    #             )
-    #         )
-    #         _cm = _df[["tn", "fp", "fn", "tp"]]
-    #         _cm["modality"] = _modality
-    #         _cm["neurotest"] = _colname.split("_")[3].upper()
-    #         cms_df = pd.concat((cms_df, _cm), ignore_index=True)
+    _cms_df
 
 
+    _rows = []
+    for _, _r in _cms_df.iterrows():
+        _rows.append(
+            {
+                "Predicted": "Positive",
+                "True Label": "Positive",
+                "Count": _r["tp"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+        _rows.append(
+            {
+                "Predicted": "Positive",
+                "True Label": "Negative",
+                "Count": _r["fp"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+        _rows.append(
+            {
+                "Predicted": "Negative",
+                "True Label": "Positive",
+                "Count": _r["fn"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+        _rows.append(
+            {
+                "Predicted": "Negative",
+                "True Label": "Negative",
+                "Count": _r["tn"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
 
+    _cm_long = pd.DataFrame(_rows)
 
-    # rows = []
-    # for _, r in cms_df.iterrows():
-    #     rows.append(
-    #         {
-    #             "Predicted": "Positive",
-    #             "True Label": "Positive",
-    #             "Count": r["tp"],
-    #             "modality": r["modality"],
-    #             "neurotest": r["neurotest"],
-    #         }
-    #     )
-    #     rows.append(
-    #         {
-    #             "Predicted": "Positive",
-    #             "True Label": "Negative",
-    #             "Count": r["fp"],
-    #             "modality": r["modality"],
-    #             "neurotest": r["neurotest"],
-    #         }
-    #     )
-    #     rows.append(
-    #         {
-    #             "Predicted": "Negative",
-    #             "True Label": "Positive",
-    #             "Count": r["fn"],
-    #             "modality": r["modality"],
-    #             "neurotest": r["neurotest"],
-    #         }
-    #     )
-    #     rows.append(
-    #         {
-    #             "Predicted": "Negative",
-    #             "True Label": "Negative",
-    #             "Count": r["tn"],
-    #             "modality": r["modality"],
-    #             "neurotest": r["neurotest"],
-    #         }
-    #     )
+    # Reihenfolge der Klassen fixieren
+    _cat_order = ["Negative", "Positive"]
 
-    # cm_long = pd.DataFrame(rows)
+    _g = sns.FacetGrid(
+        _cm_long,
+        col="modality",  # Spalten = Modalities
+        row="neurotest",  # Zeilen = Neurotests
+        row_order=test_order,
+        margin_titles=True,
+        despine=True,
+        sharex=True,
+        sharey=True,
+        height=4,
+        aspect=1.5,
+    )
 
-    # # Reihenfolge der Klassen fixieren
-    # _cat_order = ["Negative", "Positive"]
-
-    # _g = sns.FacetGrid(
-    #     cm_long,
-    #     col="modality",  # Spalten = Modalities
-    #     row="neurotest",  # Zeilen = Neurotests
-    #     row_order=test_order,
-    #     margin_titles=True,
-    #     despine=True,
-    #     sharex=True,
-    #     sharey=True,
-    #     height=4,
-    #     aspect=1.5,
-    # )
-
-    # # ── 3. Heatmap auf jedes Facet mappen ──
+    # ── 3. Heatmap auf jedes Facet mappen ──
     # def draw_heatmap(data, **kwargs):
     #     pivot = data.pivot_table(
     #         index="True Label",
@@ -4725,61 +4761,600 @@ def _(columns, join, pat_df, pd, scores_dir):
     #         **kwargs,
     #     )
 
-    # _g.map_dataframe(draw_heatmap)
-    # # Achsen-Tick-Labels auf allen Facets setzen
-    # _g.set_titles(col_template="", row_template="")
-    # _g.set_axis_labels("")
+    _g.map_dataframe(draw_heatmap)
+    # Achsen-Tick-Labels auf allen Facets setzen
+    _g.set_titles(col_template="", row_template="")
+    _g.set_axis_labels("")
 
-    # _g.set_axis_labels("Predicted", "True Label")
-    # for _ax in _g.axes.flat:
-    #     _ax.set_xticks([0.5, 1.5])
-    #     _ax.set_xticklabels(_cat_order, rotation=0)
-    #     _ax.set_yticks([0.5, 1.5])
-    #     _ax.set_yticklabels(_cat_order, rotation=0)
+    _g.set_axis_labels("Predicted", "True Label")
+    for _ax in _g.axes.flat:
+        _ax.set_xticks([0.5, 1.5])
+        _ax.set_xticklabels(_cat_order, rotation=0)
+        _ax.set_yticks([0.5, 1.5])
+        _ax.set_yticklabels(_cat_order, rotation=0)
 
-    # for _i, _ax in enumerate(_g.axes):
-    #     _bbox = _ax[
-    #         0
-    #     ].get_position()  # Get subplot position in figure coordinates
-    #     _g.fig.text(
-    #         _bbox.x0 - 0.15,  # 2.5% of figure width to the left
-    #         _bbox.y0 + _bbox.height / 2,  # Vertically centered
-    #         _g.row_names[_i].upper(),  # Row title
-    #         ha="right",
-    #         va="center",
-    #         rotation=90,
-    #         fontsize=20,
-    #         weight=700,
-    #     )
-    #     for _j, _axcol in enumerate(_ax):
-    #         if _i == 0:
-    #             _g.col_names[_j] = (
-    #                 "MPRAGE"
-    #                 if _g.col_names[_j].lower() == "t1w"
-    #                 else _g.col_names[_j]
-    #             )
-    #             _g.col_names[_j] = (
-    #                 "FLAIR"
-    #                 if _g.col_names[_j].lower() == "flair"
-    #                 else _g.col_names[_j]
-    #             )
+    for _i, _ax in enumerate(_g.axes):
+        _bbox = _ax[
+            0
+        ].get_position()  # Get subplot position in figure coordinates
+        _g.fig.text(
+            _bbox.x0 - 0.15,  # 2.5% of figure width to the left
+            _bbox.y0 + _bbox.height / 2,  # Vertically centered
+            _g.row_names[_i].upper(),  # Row title
+            ha="right",
+            va="center",
+            rotation=90,
+            fontsize=20,
+            weight=700,
+        )
+        for _j, _axcol in enumerate(_ax):
+            if _i == 0:
+                _g.col_names[_j] = (
+                    "MPRAGE"
+                    if _g.col_names[_j].lower() == "t1w"
+                    else _g.col_names[_j]
+                )
+                _g.col_names[_j] = (
+                    "FLAIR"
+                    if _g.col_names[_j].lower() == "flair"
+                    else _g.col_names[_j]
+                )
 
-    #             _axcol.set_title(_g.col_names[_j], fontsize=20, weight=700)
+                _axcol.set_title(_g.col_names[_j], fontsize=20, weight=700)
 
-    #         else:
-    #             _axcol.set_title("")
+            else:
+                _axcol.set_title("")
 
-    # _g.fig.subplots_adjust(left=0.15, top=0.95)
-    # plt.tight_layout()
-    # plt.savefig(join(output_dir, f"confusion_matrices_ext{_site_id}.svg"))
-    # plt.savefig(
-    #     join(output_dir, f"confusion_matrices_ext{_site_id}.png"),
-    #     dpi=300,
-    #     bbox_inches="tight",  # schneidet nicht ab, erfasst fig.text
-    #     pad_inches=0.2,  # etwas Padding rundherum)
-    # )
+    _g.fig.subplots_adjust(left=0.15, top=0.95)
+    _g.fig.suptitle(f"Site {_site_id}", fontsize=32, y=0.95)
 
-    # plt.show()
+
+    plt.tight_layout()
+    plt.savefig(join(output_dir, f"confusion_matrices_extEU_site-{_site_id}.svg"))
+    plt.savefig(
+        join(output_dir, f"confusion_matrices_extEU_site-{_site_id}.png"),
+        dpi=300,
+        bbox_inches="tight",  # schneidet nicht ab, erfasst fig.text
+        pad_inches=0.2,  # etwas Padding rundherum)
+    )
+
+    plt.show()
+    return (create_cm,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Kaplan Meyer Curves
+    """)
+    return
+
+
+@app.cell
+def _(df_flair, df_t1w, display_axes_grid, kmplots, pat_df, plt):
+    _site_id = 326
+    _site_pats = list(pat_df.query(f'site == "{_site_id}"').mpi)
+
+    _t1figs = kmplots(df_t1w[df_t1w['eid'].isin(_site_pats)], f"T1w {_site_id}")
+    _flairfigs = kmplots(df_flair[df_flair['eid'].isin(_site_pats)], f"FLAIR {_site_id}")
+    _n_images = len(_t1figs)
+
+    display_axes_grid(_t1figs, _flairfigs)
+
+    plt.show()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Dresden - 396
+
+    ### AUCs
+    """)
+    return
+
+
+@app.cell
+def _(
+    df_flair,
+    df_t1w,
+    join,
+    modalities,
+    output_dir,
+    pat_df,
+    plot_prc_curve,
+    plot_roc_curve,
+    plt,
+):
+    _fig, _axs = plt.subplots(3, 3, figsize=(16, 16))
+
+    _width_ratios = [1, 5, 5]
+    _height_ratios = [0.8, 5, 5]
+
+    _gs = plt.GridSpec(
+        figure=_fig,
+        ncols=3,
+        nrows=3,
+        width_ratios=_width_ratios,
+        height_ratios=_height_ratios,
+        wspace=0.2,  # Width space between plots (decrease this to reduce space)
+        hspace=0.2,  # Height space between plots
+    )
+
+
+    plt.subplots_adjust(top=0.85, bottom=0.15, left=0.1, right=0.9, hspace=0)
+
+    for _row in range(3):
+        for _col in range(3):
+            _axs[_row, _col].axis("off")  # empty corner cell
+
+    _axs = [
+        [_fig.add_subplot(_gs[_row, _col]) for _col in range(3)]
+        for _row in range(3)
+    ]
+    _axs[0][0].axis("off")  # empty corner cell
+    # Tablehead
+
+    for _col, _mod in enumerate(modalities, start=1):
+        _axs[0][_col].axis("off")
+        _axs[0][_col].text(
+            0.5,
+            0.5,
+            _mod,
+            ha="center",
+            va="center",
+            color="black",
+            fontsize=30,
+        )
+
+    # Curve names
+    for _row, _name in enumerate(["ROC", "PRC"], start=1):
+        _axs[_row][0].axis("off")
+        _axs[_row][0].text(
+            0.5,
+            0.5,
+            _name.upper(),
+            ha="right",
+            va="center",
+            color="black",
+            fontsize=30,
+            rotation=90,
+        )
+
+
+    _site_id = 396
+    _site_pats = list(pat_df.query(f'site == "{_site_id}"').mpi)
+
+    _fig.add_subplot(plot_roc_curve(df_t1w[df_t1w.eid.isin(_site_pats)], ax=_axs[1][1], figure=_fig))
+    _fig.add_subplot(plot_prc_curve(df_t1w[df_t1w.eid.isin(_site_pats)], ax=_axs[2][1], figure=_fig))
+    _fig.add_subplot(plot_roc_curve(df_flair[df_flair.eid.isin(_site_pats)], ax=_axs[1][2], figure=_fig))
+    _fig.add_subplot(plot_prc_curve(df_flair[df_flair.eid.isin(_site_pats)], ax=_axs[2][2], figure=_fig))
+
+    for _x in [1, 2]:
+        for _y in [1, 2]:
+            _axs[_x][_y].set_title("")
+
+    _fig.suptitle(f"Site {_site_id}", fontsize=32, y=0.95)
+
+
+    plt.tight_layout()
+    plt.savefig(join(output_dir, f"auroc_prc_site-{_site_id}.svg"))
+
+    plt.show()
+    return
+
+
+@app.cell
+def _(
+    columns,
+    create_cm,
+    draw_heatmap,
+    join,
+    output_dir,
+    pat_df,
+    pd,
+    plt,
+    sns,
+    test_order,
+):
+    _site_id = 396
+    _site_pats = list(pat_df.query(f'site == "{_site_id}"').mpi)
+
+    _cms_df = pd.DataFrame()
+    for _modality in ["t1w", "flair"]:
+        for _colname in columns:
+            _cms_df = pd.concat((_cms_df, create_cm(_modality, _colname, id_list=_site_pats)), ignore_index=True)
+
+
+    _rows = []
+    for _, _r in _cms_df.iterrows():
+        _rows.append(
+            {
+                "Predicted": "Positive",
+                "True Label": "Positive",
+                "Count": _r["tp"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+        _rows.append(
+            {
+                "Predicted": "Positive",
+                "True Label": "Negative",
+                "Count": _r["fp"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+        _rows.append(
+            {
+                "Predicted": "Negative",
+                "True Label": "Positive",
+                "Count": _r["fn"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+        _rows.append(
+            {
+                "Predicted": "Negative",
+                "True Label": "Negative",
+                "Count": _r["tn"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+
+    _cm_long = pd.DataFrame(_rows)
+
+    # Reihenfolge der Klassen fixieren
+    _cat_order = ["Negative", "Positive"]
+
+    _g = sns.FacetGrid(
+        _cm_long,
+        col="modality",  # Spalten = Modalities
+        row="neurotest",  # Zeilen = Neurotests
+        row_order=test_order,
+        margin_titles=True,
+        despine=True,
+        sharex=True,
+        sharey=True,
+        height=4,
+        aspect=1.5,
+    )
+
+    _g.map_dataframe(draw_heatmap)
+    # Achsen-Tick-Labels auf allen Facets setzen
+    _g.set_titles(col_template="", row_template="")
+    _g.set_axis_labels("")
+
+    _g.set_axis_labels("Predicted", "True Label")
+    for _ax in _g.axes.flat:
+        _ax.set_xticks([0.5, 1.5])
+        _ax.set_xticklabels(_cat_order, rotation=0)
+        _ax.set_yticks([0.5, 1.5])
+        _ax.set_yticklabels(_cat_order, rotation=0)
+
+    for _i, _ax in enumerate(_g.axes):
+        _bbox = _ax[
+            0
+        ].get_position()  # Get subplot position in figure coordinates
+        _g.fig.text(
+            _bbox.x0 - 0.15,  # 2.5% of figure width to the left
+            _bbox.y0 + _bbox.height / 2,  # Vertically centered
+            _g.row_names[_i].upper(),  # Row title
+            ha="right",
+            va="center",
+            rotation=90,
+            fontsize=20,
+            weight=700,
+        )
+        for _j, _axcol in enumerate(_ax):
+            if _i == 0:
+                _g.col_names[_j] = (
+                    "MPRAGE"
+                    if _g.col_names[_j].lower() == "t1w"
+                    else _g.col_names[_j]
+                )
+                _g.col_names[_j] = (
+                    "FLAIR"
+                    if _g.col_names[_j].lower() == "flair"
+                    else _g.col_names[_j]
+                )
+
+                _axcol.set_title(_g.col_names[_j], fontsize=20, weight=700)
+
+            else:
+                _axcol.set_title("")
+
+    _g.fig.subplots_adjust(left=0.15, top=0.95)
+    _g.fig.suptitle(f"Site {_site_id}", fontsize=32, y=0.95)
+
+
+    plt.tight_layout()
+    plt.savefig(join(output_dir, f"confusion_matrices_extEU_site-{_site_id}.svg"))
+    plt.savefig(
+        join(output_dir, f"confusion_matrices_extEU_site-{_site_id}.png"),
+        dpi=300,
+        bbox_inches="tight",  # schneidet nicht ab, erfasst fig.text
+        pad_inches=0.2,  # etwas Padding rundherum)
+    )
+
+    plt.show()
+    return
+
+
+@app.cell
+def _(df_flair, df_t1w, display_axes_grid, kmplots, pat_df, plt):
+    _site_id = 396
+    _site_pats = list(pat_df.query(f'site == "{_site_id}"').mpi)
+
+    _t1figs = kmplots(df_t1w[df_t1w['eid'].isin(_site_pats)], f"T1w {_site_id}")
+    _flairfigs = kmplots(df_flair[df_flair['eid'].isin(_site_pats)], f"FLAIR {_site_id}")
+    _n_images = len(_t1figs)
+
+    display_axes_grid(_t1figs, _flairfigs)
+
+    plt.show()
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Marburg - 346
+    """)
+    return
+
+
+@app.cell
+def _(
+    df_flair,
+    df_t1w,
+    join,
+    modalities,
+    output_dir,
+    pat_df,
+    plot_prc_curve,
+    plot_roc_curve,
+    plt,
+):
+    _fig, _axs = plt.subplots(3, 3, figsize=(16, 16))
+
+    _width_ratios = [1, 5, 5]
+    _height_ratios = [0.8, 5, 5]
+
+    _gs = plt.GridSpec(
+        figure=_fig,
+        ncols=3,
+        nrows=3,
+        width_ratios=_width_ratios,
+        height_ratios=_height_ratios,
+        wspace=0.2,  # Width space between plots (decrease this to reduce space)
+        hspace=0.2,  # Height space between plots
+    )
+
+
+    plt.subplots_adjust(top=0.85, bottom=0.15, left=0.1, right=0.9, hspace=0)
+
+    for _row in range(3):
+        for _col in range(3):
+            _axs[_row, _col].axis("off")  # empty corner cell
+
+    _axs = [
+        [_fig.add_subplot(_gs[_row, _col]) for _col in range(3)]
+        for _row in range(3)
+    ]
+    _axs[0][0].axis("off")  # empty corner cell
+    # Tablehead
+
+    for _col, _mod in enumerate(modalities, start=1):
+        _axs[0][_col].axis("off")
+        _axs[0][_col].text(
+            0.5,
+            0.5,
+            _mod,
+            ha="center",
+            va="center",
+            color="black",
+            fontsize=30,
+        )
+
+    # Curve names
+    for _row, _name in enumerate(["ROC", "PRC"], start=1):
+        _axs[_row][0].axis("off")
+        _axs[_row][0].text(
+            0.5,
+            0.5,
+            _name.upper(),
+            ha="right",
+            va="center",
+            color="black",
+            fontsize=30,
+            rotation=90,
+        )
+
+
+    _site_id = 346
+    _site_pats = list(pat_df.query(f'site == "{_site_id}"').mpi)
+
+    _fig.add_subplot(plot_roc_curve(df_t1w[df_t1w.eid.isin(_site_pats)], ax=_axs[1][1], figure=_fig))
+    _fig.add_subplot(plot_prc_curve(df_t1w[df_t1w.eid.isin(_site_pats)], ax=_axs[2][1], figure=_fig))
+    _fig.add_subplot(plot_roc_curve(df_flair[df_flair.eid.isin(_site_pats)], ax=_axs[1][2], figure=_fig))
+    _fig.add_subplot(plot_prc_curve(df_flair[df_flair.eid.isin(_site_pats)], ax=_axs[2][2], figure=_fig))
+
+    for _x in [1, 2]:
+        for _y in [1, 2]:
+            _axs[_x][_y].set_title("")
+
+    _fig.suptitle(f"Site {_site_id}", fontsize=32, y=0.95)
+
+
+    plt.tight_layout()
+    plt.savefig(join(output_dir, f"auroc_prc_site-{_site_id}.svg"))
+
+    plt.show()
+    return
+
+
+@app.cell
+def _(
+    columns,
+    create_cm,
+    draw_heatmap,
+    join,
+    output_dir,
+    pat_df,
+    pd,
+    plt,
+    sns,
+    test_order,
+):
+    _site_id = 346
+    _site_pats = list(pat_df.query(f'site == "{_site_id}"').mpi)
+
+    _cms_df = pd.DataFrame()
+    for _modality in ["t1w", "flair"]:
+        for _colname in columns:
+            _cms_df = pd.concat((_cms_df, create_cm(_modality, _colname, id_list=_site_pats)), ignore_index=True)
+
+
+    _rows = []
+    for _, _r in _cms_df.iterrows():
+        _rows.append(
+            {
+                "Predicted": "Positive",
+                "True Label": "Positive",
+                "Count": _r["tp"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+        _rows.append(
+            {
+                "Predicted": "Positive",
+                "True Label": "Negative",
+                "Count": _r["fp"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+        _rows.append(
+            {
+                "Predicted": "Negative",
+                "True Label": "Positive",
+                "Count": _r["fn"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+        _rows.append(
+            {
+                "Predicted": "Negative",
+                "True Label": "Negative",
+                "Count": _r["tn"],
+                "modality": _r["modality"],
+                "neurotest": _r["neurotest"],
+            }
+        )
+
+    _cm_long = pd.DataFrame(_rows)
+
+    # Reihenfolge der Klassen fixieren
+    _cat_order = ["Negative", "Positive"]
+
+    _g = sns.FacetGrid(
+        _cm_long,
+        col="modality",  # Spalten = Modalities
+        row="neurotest",  # Zeilen = Neurotests
+        row_order=test_order,
+        margin_titles=True,
+        despine=True,
+        sharex=True,
+        sharey=True,
+        height=4,
+        aspect=1.5,
+    )
+
+    _g.map_dataframe(draw_heatmap)
+    # Achsen-Tick-Labels auf allen Facets setzen
+    _g.set_titles(col_template="", row_template="")
+    _g.set_axis_labels("")
+
+    _g.set_axis_labels("Predicted", "True Label")
+    for _ax in _g.axes.flat:
+        _ax.set_xticks([0.5, 1.5])
+        _ax.set_xticklabels(_cat_order, rotation=0)
+        _ax.set_yticks([0.5, 1.5])
+        _ax.set_yticklabels(_cat_order, rotation=0)
+
+    for _i, _ax in enumerate(_g.axes):
+        _bbox = _ax[
+            0
+        ].get_position()  # Get subplot position in figure coordinates
+        _g.fig.text(
+            _bbox.x0 - 0.15,  # 2.5% of figure width to the left
+            _bbox.y0 + _bbox.height / 2,  # Vertically centered
+            _g.row_names[_i].upper(),  # Row title
+            ha="right",
+            va="center",
+            rotation=90,
+            fontsize=20,
+            weight=700,
+        )
+        for _j, _axcol in enumerate(_ax):
+            if _i == 0:
+                _g.col_names[_j] = (
+                    "MPRAGE"
+                    if _g.col_names[_j].lower() == "t1w"
+                    else _g.col_names[_j]
+                )
+                _g.col_names[_j] = (
+                    "FLAIR"
+                    if _g.col_names[_j].lower() == "flair"
+                    else _g.col_names[_j]
+                )
+
+                _axcol.set_title(_g.col_names[_j], fontsize=20, weight=700)
+
+            else:
+                _axcol.set_title("")
+
+    _g.fig.subplots_adjust(left=0.15, top=0.95)
+    _g.fig.suptitle(f"Site {_site_id}", fontsize=32, y=0.95)
+
+
+    plt.tight_layout()
+    plt.savefig(join(output_dir, f"confusion_matrices_extEU_site-{_site_id}.svg"))
+    plt.savefig(
+        join(output_dir, f"confusion_matrices_extEU_site-{_site_id}.png"),
+        dpi=300,
+        bbox_inches="tight",  # schneidet nicht ab, erfasst fig.text
+        pad_inches=0.2,  # etwas Padding rundherum)
+    )
+
+    plt.show()
+    return
+
+
+@app.cell
+def _(df_flair, df_t1w, display_axes_grid, kmplots, pat_df, plt):
+    _site_id = 346
+    _site_pats = list(pat_df.query(f'site == "{_site_id}"').mpi)
+
+    _t1figs = kmplots(df_t1w[df_t1w['eid'].isin(_site_pats)], f"T1w {_site_id}")
+    _flairfigs = kmplots(df_flair[df_flair['eid'].isin(_site_pats)], f"FLAIR {_site_id}")
+    _n_images = len(_t1figs)
+
+    display_axes_grid(_t1figs, _flairfigs)
+
+    plt.show()
     return
 
 
