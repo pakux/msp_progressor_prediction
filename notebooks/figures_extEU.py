@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.2"
+__generated_with = "0.25.1"
 app = marimo.App(
     width="full",
     app_title="EUext - Figures and plots",
@@ -5251,7 +5251,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     df_flair,
     df_t1w,
@@ -5358,16 +5358,28 @@ def _(
     return
 
 
-app._unparsable_cell(
-    r"""
+@app.cell
+def _(
+    columns,
+    create_cm,
+    draw_heatmap,
+    join,
+    output_dir,
+    pat_df,
+    pd,
+    plt,
+    sns,
+    test_order,
+):
     _site_ids = {"DE": [346, 396], "ES": [326]}
     _rows = []
 
+    for _country, _site_id in _site_ids.items():
         _site_pats = list(pat_df.query(f'site == "{_site_id}"').mpi)
         for _site in _site_id:
             _s = list(pat_df.query(f'site == "{_site}"').mpi)
             _site_pats = _site_pats + _s
-
+    
         _cms_df = pd.DataFrame()
         for _modality in ["t1w", "flair"]:
             for _colname in columns:
@@ -5375,45 +5387,41 @@ app._unparsable_cell(
                     (_cms_df, create_cm(_modality, _colname, id_list=_site_pats)),
                     ignore_index=True,
                 )
-
+    
         for _, _r in _cms_df.iterrows():
             _rows.append(
                 {
-                    "contry": "de",
                     "Predicted": "Positive",
                     "True Label": "Positive",
                     "Count": _r["tp"],
-                    "modality": _r["modality"],
+                    "modality": _country+_r["modality"],
                     "neurotest": _r["neurotest"],
                 }
             )
             _rows.append(
                 {
-                    "contry": "de",
                     "Predicted": "Positive",
                     "True Label": "Negative",
                     "Count": _r["fp"],
-                    "modality": _r["modality"],
+                    "modality": _country+_r["modality"],
                     "neurotest": _r["neurotest"],
                 }
             )
             _rows.append(
                 {
-                    "contry": "de",
                     "Predicted": "Negative",
                     "True Label": "Positive",
                     "Count": _r["fn"],
-                    "modality": _r["modality"],
+                    "modality": _country+_r["modality"],
                     "neurotest": _r["neurotest"],
                 }
             )
             _rows.append(
                 {
-                    "contry": "de",
                     "Predicted": "Negative",
                     "True Label": "Negative",
                     "Count": _r["tn"],
-                    "modality": _r["modality"],
+                    "modality": _country+_r["modality"],
                     "neurotest": _r["neurotest"],
                 }
             )
@@ -5465,10 +5473,10 @@ app._unparsable_cell(
         for _j, _axcol in enumerate(_ax):
             if _i == 0:
                 _g.col_names[_j] = (
-                    "MPRAGE" if _g.col_names[_j].lower() == "t1w" else _g.col_names[_j]
+                    "MPRAGE" if _g.col_names[_j].lower().endswith("t1w") else _g.col_names[_j]
                 )
                 _g.col_names[_j] = (
-                    "FLAIR" if _g.col_names[_j].lower() == "flair" else _g.col_names[_j]
+                    "FLAIR" if _g.col_names[_j].lower().endswith("flair") else _g.col_names[_j]
                 )
 
                 _axcol.set_title(_g.col_names[_j], fontsize=20, weight=700)
@@ -5476,8 +5484,11 @@ app._unparsable_cell(
             else:
                 _axcol.set_title("")
 
-    _g.fig.subplots_adjust(left=0.15, top=0.95)
-    _g.fig.suptitle(f"Site {_site_id}", fontsize=32, y=0.95)
+
+            
+
+    _g.fig.subplots_adjust(left=0.95, top=0.15)
+    # _g.fig.suptitle(f"Site {_site_id}", fontsize=32, y=0.95)
 
     plt.tight_layout()
     plt.savefig(join(output_dir, f"confusion_matrices_extEU_site-{_site_id}.svg"))
@@ -5489,9 +5500,7 @@ app._unparsable_cell(
     )
 
     plt.show()
-    """,
-    name="_"
-)
+    return
 
 
 if __name__ == "__main__":
