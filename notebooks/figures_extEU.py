@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(
     width="full",
     app_title="EUext - Figures and plots",
@@ -5334,8 +5334,8 @@ def _(
     _site_pats = []
 
     for _site in _site_id:
-        _s = list(pat_df.query(f'site == "{_site}"').mpi)
-        _site_pats = _site_pats + _s
+         _s = list(pat_df.query(f'site == "{_site}"').mpi)
+         _site_pats = _site_pats + _s
     _fig.add_subplot(
         plot_roc_curve(df_t1w[df_t1w.eid.isin(_site_pats)], ax=_axs[2][1], figure=_fig)
     )
@@ -5349,7 +5349,7 @@ def _(
         for _y in [1, 2]:
             _axs[_x][_y].set_title("")
 
-    _fig.suptitle(f"Site {_site_id}", fontsize=32, y=0.95)
+    # _fig.suptitle(f"Site {_site_id}", fontsize=32, y=0.95)
 
     plt.tight_layout()
     plt.savefig(join(output_dir, f"auroc_site-de_es.svg"))
@@ -5358,7 +5358,114 @@ def _(
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
+def _(
+    df_flair,
+    df_t1w,
+    join,
+    modalities,
+    output_dir,
+    pat_df,
+    plot_prc_curve,
+    plt,
+):
+    _fig, _axs = plt.subplots(3, 3, figsize=(16, 16))
+
+    _width_ratios = [1, 5, 5]
+    _height_ratios = [0.8, 5, 5]
+
+    _gs = plt.GridSpec(
+        figure=_fig,
+        ncols=3,
+        nrows=3,
+        width_ratios=_width_ratios,
+        height_ratios=_height_ratios,
+        wspace=0.2,  # Width space between plots (decrease this to reduce space)
+        hspace=0.2,  # Height space between plots
+    )
+
+    plt.subplots_adjust(top=0.85, bottom=0.15, left=0.1, right=0.9, hspace=0)
+
+    for _row in range(3):
+        for _col in range(3):
+            _axs[_row, _col].axis("off")  # empty corner cell
+
+    _axs = [
+        [_fig.add_subplot(_gs[_row, _col]) for _col in range(3)] for _row in range(3)
+    ]
+    _axs[0][0].axis("off")  # empty corner cell
+    # Tablehead
+
+    for _col, _mod in enumerate(modalities, start=1):
+        _axs[0][_col].axis("off")
+        _axs[0][_col].text(
+            0.5,
+            0.5,
+            _mod,
+            ha="center",
+            va="center",
+            color="black",
+            fontsize=30,
+        )
+
+    # Curve names
+    for _row, _name in enumerate(["DE", "ES"], start=1):
+        _axs[_row][0].axis("off")
+        _axs[_row][0].text(
+            0.5,
+            0.5,
+            _name.upper(),
+            ha="right",
+            va="center",
+            color="black",
+            fontsize=30,
+            rotation=90,
+        )
+
+    _site_id = [346, 396]
+    _site_pats = []
+    for _site in _site_id:
+        _s = list(pat_df.query(f'site == "{_site}"').mpi)
+        _site_pats = _site_pats + _s
+
+    _fig.add_subplot(
+        plot_prc_curve(df_t1w[df_t1w.eid.isin(_site_pats)], ax=_axs[1][1], figure=_fig)
+    )
+    _fig.add_subplot(
+        plot_prc_curve(
+            df_flair[df_flair.eid.isin(_site_pats)], ax=_axs[1][2], figure=_fig
+        )
+    )
+
+    _site_id = [326]
+    _site_pats = []
+
+    for _site in _site_id:
+         _s = list(pat_df.query(f'site == "{_site}"').mpi)
+         _site_pats = _site_pats + _s
+    _fig.add_subplot(
+        plot_prc_curve(df_t1w[df_t1w.eid.isin(_site_pats)], ax=_axs[2][1], figure=_fig)
+    )
+    _fig.add_subplot(
+        plot_prc_curve(
+            df_flair[df_flair.eid.isin(_site_pats)], ax=_axs[2][2], figure=_fig
+        )
+    )
+
+    for _x in [1, 2]:
+        for _y in [1, 2]:
+            _axs[_x][_y].set_title("")
+
+    # _fig.suptitle(f"Site {_site_id}", fontsize=32, y=0.95)
+
+    plt.tight_layout()
+    plt.savefig(join(output_dir, f"prc_site-de_es.svg"))
+
+    plt.show()
+    return
+
+
+@app.cell(hide_code=True)
 def _(
     columns,
     create_cm,
@@ -5379,7 +5486,7 @@ def _(
         for _site in _site_id:
             _s = list(pat_df.query(f'site == "{_site}"').mpi)
             _site_pats = _site_pats + _s
-    
+
         _cms_df = pd.DataFrame()
         for _modality in ["t1w", "flair"]:
             for _colname in columns:
@@ -5387,7 +5494,7 @@ def _(
                     (_cms_df, create_cm(_modality, _colname, id_list=_site_pats)),
                     ignore_index=True,
                 )
-    
+
         for _, _r in _cms_df.iterrows():
             _rows.append(
                 {
@@ -5485,21 +5592,314 @@ def _(
                 _axcol.set_title("")
 
 
-            
+    
 
     _g.fig.subplots_adjust(left=0.95, top=0.15)
+
     # _g.fig.suptitle(f"Site {_site_id}", fontsize=32, y=0.95)
 
+
+    def add_group_title(g, col_start, col_end, title, y=1.04, **kwargs):
+        """Add a title centered above columns col_start..col_end (inclusive)."""
+        g.figure.subplots_adjust(top=0.80)
+        g.figure.canvas.draw()
+
+        ax_l, ax_r = g.axes[0, 0], g.axes[0, 1]
+        x_center = (ax_l.get_position().x0 + ax_r.get_position().x1) / 2
+
+        print("x_center =", x_center)   # sanity check
+
+        g.figure.text(x_center, 1.03, "Group A",
+                      ha="center", va="bottom",
+                      transform=g.figure.transFigure,  # explicit: figure fraction
+                      fontsize=14, fontweight="bold")
+    # add_group_title(_g, 0, 1, "Group A")
+    # add_group_title(_g, 1, 2, "Group B")
+
+
+
+    _g.figure.text(0.26, 1.03, "DE",
+                      ha="center", va="bottom",
+                      transform=_g.figure.transFigure,  # explicit: figure fraction
+                      fontsize=20, fontweight="bold")
+    _g.figure.text(0.75, 1.03, "ES",
+                      ha="center", va="bottom",
+                      transform=_g.figure.transFigure,  # explicit: figure fraction
+                      fontsize=20, fontweight="bold")
+
+
     plt.tight_layout()
-    plt.savefig(join(output_dir, f"confusion_matrices_extEU_site-{_site_id}.svg"))
+    plt.savefig(join(output_dir, f"confusion_matrices_extEU_de_es.svg"))
     plt.savefig(
-        join(output_dir, f"confusion_matrices_extEU_site-{_site_id}.png"),
+        join(output_dir, f"confusion_matrices_extEU_de_es.png"),
         dpi=300,
         bbox_inches="tight",  # schneidet nicht ab, erfasst fig.text
         pad_inches=0.2,  # etwas Padding rundherum)
     )
 
     plt.show()
+
+    return
+
+
+@app.cell
+def _(matplotlib, plt):
+    def display_axes_grid2(t1figs, flairfigs , xlim=None, ylim=None):
+        """
+        Display two lists of matplotlib axes (e.g., Kaplan-Meier plots) in a grid layout,
+        preserving confidence bands, text annotations, legends, and other plot elements.
+
+        Parameters:
+        ===========
+    
+        t1figs: List of matplotlib axes 
+            (left column, T1w)
+        flairfigs: list of matplotlib axes 
+            (right column, FLAIR)
+        xlim: list of int
+        ylim: list of int
+        
+        """
+        assert len(t1figs) == len(flairfigs), "Both lists must have the same length"
+
+        # First, find consistent limits across ALL original axes
+        all_axes = t1figs + flairfigs
+        if xlim is None:
+            global_xlim = [float("inf"), float("-inf")]
+        else:
+            global_xlim = xlim
+
+        if ylim is None:
+            global_ylim = [float("inf"), float("-inf")]
+        else:
+            global_ylim = ylim
+        
+
+        for ax in all_axes:
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
+            global_xlim[0] = min(global_xlim[0], xlim[0])
+            global_xlim[1] = max(global_xlim[1], xlim[1])
+            global_ylim[0] = min(global_ylim[0], ylim[0])
+            global_ylim[1] = max(global_ylim[1], ylim[1])
+
+        # Create figure with grid layout
+        fig = plt.figure(figsize=(20, 10 * len(t1figs)))
+        gs = plt.GridSpec(
+            len(t1figs) + 1,
+            2 + 1,
+            width_ratios=[0.08, 1, 1],
+            hspace=0.2,
+            wspace=0.2,
+            height_ratios=[0.05, 1, 1, 1, 1],
+        )
+
+        for i, (t1_ax, flair_ax) in enumerate(zip(t1figs, flairfigs)):
+            # --- Row Label (Column 0) ---
+            ax_row_label = fig.add_subplot(gs[i + 1, 0])
+            ax_row_label.axis("off")
+            ax_row_label.text(
+                0.5,
+                0.5,
+                t1_ax.title.get_text(),
+                ha="right",
+                va="center",
+                fontsize=24,
+                fontweight="bold",
+                rotation=90,
+            )
+
+            # --- Left: T1w plot ---
+            t1_new_ax = fig.add_subplot(gs[i + 1, 1])
+            # t1_new_ax.set_title(f"T1w Image {i + 1}", fontsize=10, pad=5)
+
+            # Set CONSISTENT limits for ALL subfigures
+            t1_new_ax.set_xlim(global_xlim)
+            t1_new_ax.set_ylim(global_ylim)
+            t1_new_ax.autoscale(enable=False)
+
+            # Copy all lines
+            for line in t1_ax.get_lines():
+                t1_new_ax.plot(
+                    line.get_xdata(),
+                    line.get_ydata(),
+                    color=line.get_color(),
+                    label=line.get_label(),
+                    linewidth=line.get_linewidth(),
+                    linestyle=line.get_linestyle(),
+                )
+
+            # Copy confidence bands (PolyCollection) by cloning data
+            for collection in t1_ax.collections:
+                if isinstance(collection, matplotlib.collections.PolyCollection):
+                    # Extract vertices from each Path in the collection
+                    vertices_list = []
+                    for path in collection.get_paths():
+                        # Convert Path to vertex array (x, y coordinates)
+                        vertices_list.append(path.vertices)  # This gives a (N, 2) array
+
+                    # Create new PolyCollection with vertex arrays
+                    new_collection = matplotlib.collections.PolyCollection(
+                        vertices_list,
+                        facecolors=collection.get_facecolor(),
+                        edgecolors=collection.get_edgecolor(),
+                        alpha=collection.get_alpha(),
+                        linewidths=collection.get_linewidths(),
+                    )
+                    t1_new_ax.add_collection(new_collection)
+
+            # Copy text annotations WITH bbox properties
+            for text in t1_ax.texts:
+                bbox_props = text.get_bbox_patch()
+                bbox_dict = {}
+                if bbox_props is not None:
+                    bbox_dict = {
+                        "boxstyle": bbox_props.get_boxstyle(),
+                        "facecolor": bbox_props.get_facecolor(),
+                        "edgecolor": bbox_props.get_edgecolor(),
+                        "linewidth": bbox_props.get_linewidth(),
+                        "alpha": bbox_props.get_alpha(),
+                    }
+
+                t1_new_ax.text(
+                    text.get_position()[0],
+                    text.get_position()[1],
+                    text.get_text(),
+                    fontsize=text.get_fontsize(),
+                    color=text.get_color(),
+                    ha=text.get_ha(),
+                    va=text.get_va(),
+                    bbox=bbox_dict if bbox_dict else None,
+                )
+
+            # Copy legend
+            if t1_ax.get_legend() is not None:
+                t1_new_ax.legend(loc="upper right")
+
+            # --- Right: FLAIR plot ---
+            flair_new_ax = fig.add_subplot(gs[i + 1, 2])
+            # flair_new_ax.set_title(f"FLAIR Image {i + 1}", fontsize=10, pad=5)
+
+            # Set CONSISTENT limits for ALL subfigures
+            flair_new_ax.set_xlim(global_xlim)
+            flair_new_ax.set_ylim(global_ylim)
+            flair_new_ax.autoscale(enable=False)
+
+            # Copy lines
+            for line in flair_ax.get_lines():
+                flair_new_ax.plot(
+                    line.get_xdata(),
+                    line.get_ydata(),
+                    color=line.get_color(),
+                    label=line.get_label(),
+                    linewidth=line.get_linewidth(),
+                    linestyle=line.get_linestyle(),
+                )
+
+            # Copy confidence bands
+            for collection in flair_ax.collections:
+                if isinstance(collection, matplotlib.collections.PolyCollection):
+                    vertices_list = []
+                    for path in collection.get_paths():
+                        vertices_list.append(path.vertices)
+                    new_collection = matplotlib.collections.PolyCollection(
+                        vertices_list,
+                        facecolors=collection.get_facecolor(),
+                        edgecolors=collection.get_edgecolor(),
+                        alpha=collection.get_alpha(),
+                        linewidths=collection.get_linewidths(),
+                    )
+                    flair_new_ax.add_collection(new_collection)
+
+            # Copy text annotations WITH bbox properties
+            for text in flair_ax.texts:
+                bbox_props = text.get_bbox_patch()
+                bbox_dict = {}
+                if bbox_props is not None:
+                    bbox_dict = {
+                        "boxstyle": bbox_props.get_boxstyle(),
+                        "facecolor": bbox_props.get_facecolor(),
+                        "edgecolor": bbox_props.get_edgecolor(),
+                        "linewidth": bbox_props.get_linewidth(),
+                        "alpha": bbox_props.get_alpha(),
+                    }
+
+                flair_new_ax.text(
+                    text.get_position()[0],
+                    text.get_position()[1],
+                    text.get_text(),
+                    fontsize=text.get_fontsize(),
+                    color=text.get_color(),
+                    ha=text.get_ha(),
+                    va=text.get_va(),
+                    bbox=bbox_dict if bbox_dict else None,
+                )
+            # Copy legend
+            if flair_ax.get_legend() is not None:
+                flair_new_ax.legend(loc="upper right")
+
+        # T1w Header
+        ax_header_t1 = fig.add_subplot(gs[0, 1])
+        ax_header_t1.axis("off")
+        ax_header_t1.text(
+            0.5,
+            0.3,
+            "MPRAGE",
+            ha="center",
+            va="center",
+            fontsize=24,
+            fontweight="bold",
+        )
+
+        # FLAIR Header
+        ax_header_flair = fig.add_subplot(gs[0, 2])
+        ax_header_flair.axis("off")
+        ax_header_flair.text(
+            0.5,
+            0.3,
+            "FLAIR",
+            ha="center",
+            va="center",
+            fontsize=24,
+            fontweight="bold",
+        )
+
+
+
+    return (display_axes_grid2,)
+
+
+@app.cell
+def _(
+    df_flair,
+    df_t1w,
+    display_axes_grid2,
+    join,
+    kmplots,
+    output_dir,
+    pat_df,
+    plt,
+):
+    _site_ids = {"DE": [346, 396], "ES": [326]}
+    for _country, _site_id in _site_ids.items():
+        _site_pats = list(pat_df.query(f'site == "{_site_id}"').mpi)
+        for _site in _site_id:
+            _s = list(pat_df.query(f'site == "{_site}"').mpi)
+            _site_pats = _site_pats + _s
+
+
+        _t1figs = kmplots(df_t1w[df_t1w["eid"].isin(_site_pats)], f"T1w {_site_id}")
+        _flairfigs = kmplots(df_flair[df_flair["eid"].isin(_site_pats)], f"FLAIR {_site_id}")
+
+    
+        _n_images = len(_t1figs)
+
+        display_axes_grid2(_t1figs, _flairfigs, ylim=[0,1])
+        plt.title(_country)
+        plt.savefig(join(output_dir, f"kmplots_{_country}_dataset-test.svg"))
+        plt.savefig(join(output_dir, f"kmplots_{_country}_dataset-test.png"))
+    
+        plt.show()
     return
 
 
