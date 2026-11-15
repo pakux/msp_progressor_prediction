@@ -1,6 +1,8 @@
-marimo
-seaborn
-pandas
+marimo==0.25.2
+seaborn==0.13.2
+pandas==2.3.3
+typing-extensions==4.15.0
+typing-inspection==0.4.2
 tables
 torch
 scikit-learn

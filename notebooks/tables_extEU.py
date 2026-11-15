@@ -1236,22 +1236,11 @@ def _(batchsize, eval_dir, imagesize, join, pd, tests):
     return
 
 
-@app.cell
-def _():
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Actual progressors
+    ### German Centers - 346 + 396
     """)
-    return
-
-
-@app.cell
-def _(progression_col):
-    progression_col()
     return
 
 

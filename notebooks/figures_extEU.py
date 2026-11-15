@@ -191,8 +191,7 @@ def setup_1(mo):
         mcolors,
         models_dir,
         np,
-        order_regions_reg,
-        order_regions_tracts,
+        order_regions,
         output_dir,
         patches,
         patientstable,
@@ -2590,18 +2589,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    join,
-    np,
-    order_regions_reg,
-    order_regions_tracts,
-    output_dir,
-    pd,
-    plt,
-    sns,
-    t,
-    test_order,
-):
+def _(join, np, order_regions, output_dir, pd, plt, sns, t, test_order):
     def ci(df, column):
         """
         Calculate the 95% confidence interval for a numeric column in a DataFrame.
@@ -2667,7 +2655,7 @@ def _(
         "region",
         "mean_intensity",
         errorbar=("ci", 95),
-        order=order_regions_reg,
+        order=order_regions,
     )
     fsgrid.set_titles(row_template="", col_template="{col_name}")
     fsgrid.set_axis_labels("")
@@ -2713,69 +2701,74 @@ def _(
 
     plt.show()
 
-    fsgrid_tracts = sns.FacetGrid(
-        fsregions_df,
-        # x='region',
-        row="neurotes",
-        col="modality",
-        hue="neurotes",
-        row_order=test_order,
-        sharey=True,
-        sharex=True,
-        height=4,
-        aspect=0.8,
-    )
-    fsgrid_tracts.map_dataframe(
-        sns.barplot,
-        "region",
-        "mean_intensity",
-        errorbar=("ci", 95),
-        order=order_regions_tracts,
-    )
-    fsgrid_tracts.set_titles(row_template="", col_template="{col_name}")
-    fsgrid_tracts.set_axis_labels("")
+    # fsgrid_tracts = sns.FacetGrid(
+    #     fsregions_df,
+    #     # x='region',
+    #     row="neurotes",
+    #     col="modality",
+    #     hue="neurotes",
+    #     row_order=test_order,
+    #     sharey=True,
+    #     sharex=True,
+    #     height=4,
+    #     aspect=0.8,
+    # )
+    # fsgrid_tracts.map_dataframe(
+    #     sns.barplot,
+    #     "region",
+    #     "mean_intensity",
+    #     errorbar=("ci", 95),
+    #     order=order_regions_tracts,
+    # )
+    # fsgrid_tracts.set_titles(row_template="", col_template="{col_name}")
+    # fsgrid_tracts.set_axis_labels("")
 
-    # Rotate x-axis tick labels
-    for _ax in fsgrid_tracts.axes.flat:
-        _ax.tick_params(axis="x", rotation=60, labelrotation_mode="xtick")
-        _ax.set_xlabel("")
-        _ax.set_ylabel("attention")
+    # # Rotate x-axis tick labels
+    # for _ax in fsgrid_tracts.axes.flat:
+    #     _ax.tick_params(axis="x", rotation=60, labelrotation_mode="xtick")
+    #     _ax.set_xlabel("")
+    #     _ax.set_ylabel("attention")
 
-    for _i, _ax in enumerate(fsgrid_tracts.axes):
-        _bbox = _ax[0].get_position()  # Get subplot position in figure coordinates
-        fsgrid_tracts.fig.text(
-            _bbox.x0 - 0.1,  # 2.5% of figure width to the left
-            _bbox.y0 + _bbox.height / 2,  # Vertically centered
-            fsgrid_tracts.row_names[_i],  # Row title
-            ha="right",
-            va="center",
-            rotation=90,
-            fontsize=20,
-            weight=700,
-        )
-        for _j, _axcol in enumerate(_ax):
-            if _i == 0:
-                fsgrid_tracts.col_names[_j] = (
-                    "MPRAGE"
-                    if fsgrid_tracts.col_names[_j].lower() == "t1w"
-                    else fsgrid_tracts.col_names[_j]
-                )
-                fsgrid.col_names[_j] = (
-                    "FLAIR"
-                    if fsgrid_tracts.col_names[_j].lower() == "flair"
-                    else fsgrid_tracts.col_names[_j]
-                )
+    # for _i, _ax in enumerate(fsgrid_tracts.axes):
+    #     _bbox = _ax[0].get_position()  # Get subplot position in figure coordinates
+    #     fsgrid_tracts.fig.text(
+    #         _bbox.x0 - 0.1,  # 2.5% of figure width to the left
+    #         _bbox.y0 + _bbox.height / 2,  # Vertically centered
+    #         fsgrid_tracts.row_names[_i],  # Row title
+    #         ha="right",
+    #         va="center",
+    #         rotation=90,
+    #         fontsize=20,
+    #         weight=700,
+    #     )
+    #     for _j, _axcol in enumerate(_ax):
+    #         if _i == 0:
+    #             fsgrid_tracts.col_names[_j] = (
+    #                 "MPRAGE"
+    #                 if fsgrid_tracts.col_names[_j].lower() == "t1w"
+    #                 else fsgrid_tracts.col_names[_j]
+    #             )
+    #             fsgrid.col_names[_j] = (
+    #                 "FLAIR"
+    #                 if fsgrid_tracts.col_names[_j].lower() == "flair"
+    #                 else fsgrid_tracts.col_names[_j]
+    #             )
 
-                _axcol.set_title(fsgrid_tracts.col_names[_j], fontsize=20, weight=700)
+    #             _axcol.set_title(fsgrid_tracts.col_names[_j], fontsize=20, weight=700)
 
-            else:
-                _axcol.set_title("")
+    #         else:
+    #             _axcol.set_title("")
 
-    # plt.savefig("regional_attention.svg")
-    # plt.savefig("regional_attention.png")
+    # # plt.savefig("regional_attention.svg")
+    # # plt.savefig("regional_attention.png")
 
-    plt.show()
-    return fsregions_df, fsregions_molten_df
+    # plt.show()
+    return fsgrid, fsregions_df, fsregions_molten_df
+
+
+@app.cell
+def _():
+    return
 
 
 @app.cell
@@ -5592,7 +5585,7 @@ def _(
                 _axcol.set_title("")
 
 
-    
+
 
     _g.fig.subplots_adjust(left=0.95, top=0.15)
 
@@ -5638,7 +5631,6 @@ def _(
     )
 
     plt.show()
-
     return
 
 
@@ -5651,14 +5643,14 @@ def _(matplotlib, plt):
 
         Parameters:
         ===========
-    
+
         t1figs: List of matplotlib axes 
             (left column, T1w)
         flairfigs: list of matplotlib axes 
             (right column, FLAIR)
         xlim: list of int
         ylim: list of int
-        
+    
         """
         assert len(t1figs) == len(flairfigs), "Both lists must have the same length"
 
@@ -5673,7 +5665,7 @@ def _(matplotlib, plt):
             global_ylim = [float("inf"), float("-inf")]
         else:
             global_ylim = ylim
-        
+    
 
         for ax in all_axes:
             xlim = ax.get_xlim()
@@ -5891,15 +5883,93 @@ def _(
         _t1figs = kmplots(df_t1w[df_t1w["eid"].isin(_site_pats)], f"T1w {_site_id}")
         _flairfigs = kmplots(df_flair[df_flair["eid"].isin(_site_pats)], f"FLAIR {_site_id}")
 
-    
+
         _n_images = len(_t1figs)
 
         display_axes_grid2(_t1figs, _flairfigs, ylim=[0,1])
         plt.title(_country)
         plt.savefig(join(output_dir, f"kmplots_{_country}_dataset-test.svg"))
         plt.savefig(join(output_dir, f"kmplots_{_country}_dataset-test.png"))
-    
+
         plt.show()
+    return
+
+
+@app.cell
+def _(
+    fsgrid,
+    fsregions_df,
+    fsregions_molten_df,
+    order_regions,
+    plt,
+    sns,
+    test_order,
+):
+
+    print(fsregions_molten_df)
+
+    _fsgrid = sns.FacetGrid(
+        fsregions_df,
+        # x='region',
+        row="neurotes",
+        col="modality",
+        hue="neurotes",
+        row_order=test_order,
+        sharey=True,
+        sharex=True,
+        height=4,
+        aspect=1.5,
+    )
+    _fsgrid.map_dataframe(
+        sns.barplot,
+        "region",
+        "mean_intensity",
+        errorbar=("ci", 95),
+        order=order_regions,
+    )
+    _fsgrid.set_titles(row_template="", col_template="{col_name}")
+    _fsgrid.set_axis_labels("")
+
+    # Rotate x-axis tick labels
+    for _ax in _fsgrid.axes.flat:
+        _ax.tick_params(axis="x", rotation=60, labelrotation_mode="xtick")
+        _ax.set_xlabel("")
+        _ax.set_ylabel("attention")
+
+    for _i, _ax in enumerate(_fsgrid.axes):
+        _bbox = _ax[0].get_position()  # Get subplot position in figure coordinates
+        _fsgrid.fig.text(
+            _bbox.x0 - 0.1,  # 2.5% of figure width to the left
+            _bbox.y0 + _bbox.height / 2,  # Vertically centered
+            fsgrid.row_names[_i],  # Row title
+            ha="right",
+            va="center",
+            rotation=90,
+            fontsize=20,
+            weight=700,
+        )
+        for _j, _axcol in enumerate(_ax):
+            if _i == 0:
+                fsgrid.col_names[_j] = (
+                    "MPRAGE"
+                    if _fsgrid.col_names[_j].lower() == "t1w"
+                    else _fsgrid.col_names[_j]
+                )
+                _fsgrid.col_names[_j] = (
+                    "FLAIR"
+                    if _fsgrid.col_names[_j].lower() == "flair"
+                    else _fsgrid.col_names[_j]
+                )
+
+                _axcol.set_title(fsgrid.col_names[_j], fontsize=20, weight=700)
+
+            else:
+                _axcol.set_title("")
+
+    # plt.savefig(join(output_dir, "regional_attention.svg"))
+    # plt.savefig(join(output_dir, "regional_attention.png"))
+
+    plt.show()
     return
 
 
