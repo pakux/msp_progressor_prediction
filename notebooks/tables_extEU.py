@@ -14,6 +14,7 @@ def setup_1():
     import numpy as np
     import marimo as mo
     import pandas as pd
+    from pathlib import Path
     from os.path import join, abspath, isfile
     from scipy.stats import (
         chi2_contingency,
@@ -23,6 +24,7 @@ def setup_1():
         chisquare,
         t,
     )
+    from test_functions import run_test, performance_params
 
 
     ### Read config for paths
@@ -72,6 +74,7 @@ def setup_1():
         return f"worst_progressor_2ycutoff_{testname}_2z"
 
     return (
+        Path,
         baseline_characteristics_df,
         batchsize,
         chi2_contingency,
@@ -86,7 +89,9 @@ def setup_1():
         models,
         np,
         pd,
+        performance_params,
         progression_col,
+        run_test,
         t,
         tests,
     )
@@ -1051,6 +1056,12 @@ def _(batchsize, eval_dir, imagesize, join, pd, tests):
     sensitivity_df[
         ["modality", "test", "Sensitivity", "Specitivity", "PPV", "NPV"]
     ]
+    return (sensitivity_df,)
+
+
+@app.cell
+def _(sensitivity_df):
+    sensitivity_df
     return
 
 
@@ -1239,8 +1250,111 @@ def _(batchsize, eval_dir, imagesize, join, pd, tests):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### German Centers - 346 + 396
+    ### Split Tests into ES and DE
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    read T1w data
+    """)
+    return
+
+
+@app.cell
+def _(Path, columns, data_dir, pd, run_test):
+    _outfile = Path(f"output_exteu_t1w.csv")
+    if _outfile.exists():
+        df_t1w = pd.read_csv(_outfile)
+    else:
+        df_t1w = pd.DataFrame()
+
+        for _column_name in columns:
+            # run_test should create and return y_test, y_score or write output.csv
+            _eids, _y_test, _y_score = run_test(
+                _column_name, data_dir, "mspaths/t1w/external_test", "t1w"
+            )
+            # Save to CSV (using pandas for header and robust types)
+            _df_current = pd.DataFrame(
+                {
+                    "eid": _eids,
+                    "y_test": _y_test,
+                    "y_score": _y_score,
+                    "name": _column_name,
+                }
+            )
+
+            df_t1w = pd.concat((df_t1w, _df_current), ignore_index=True)
+            df_t1w.to_csv(_outfile, index=False)
+
+    # Rename Entries to human readable format
+    df_t1w.loc[df_t1w.name.str.contains("_pst"), "name"] = "PST"
+    df_t1w.loc[df_t1w.name.str.contains("_cst"), "name"] = "CST"
+    df_t1w.loc[df_t1w.name.str.contains("_wst"), "name"] = "WST"
+    df_t1w.loc[df_t1w.name.str.contains("_mdt"), "name"] = "MDT"
+    return (df_t1w,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    read FLAIR data
+    """)
+    return
+
+
+@app.cell
+def _(Path, columns, data_dir, pd, run_test):
+    _outfile = Path(f"output_exeu_flair.csv")
+    if _outfile.exists():
+        df_flair = pd.read_csv(_outfile)
+    else:
+        df_flair = pd.DataFrame()
+
+        for _column_name in columns:
+            # run_test should create and return y_test, y_score or write output.csv
+            _eids, _y_test, _y_score = run_test(
+                _column_name, data_dir, "mspaths/flair/external_test", "flair"
+            )
+            # Save to CSV (using pandas for header and robust types)
+            _df_current = pd.DataFrame(
+                {
+                    "eid": _eids,
+                    "y_test": _y_test,
+                    "y_score": _y_score,
+                    "name": _column_name,
+                }
+            )
+
+            df_flair = pd.concat((df_flair, _df_current), ignore_index=True)
+            df_flair.to_csv(_outfile, index=False)
+
+    # Rename Entries to human readable format
+    df_flair.loc[df_flair.name.str.contains("_pst"), "name"] = "PST"
+    df_flair.loc[df_flair.name.str.contains("_cst"), "name"] = "CST"
+    df_flair.loc[df_flair.name.str.contains("_wst"), "name"] = "WST"
+    df_flair.loc[df_flair.name.str.contains("_mdt"), "name"] = "MDT"
+    return
+
+
+@app.cell
+def _(df_t1w):
+    df_t1w
+    return
+
+
+@app.cell
+def _(df_t1w, performance_params):
+
+    # Iterate over all function tests
+    for _func_test in set(df_t1w.name.to_list()):
+    
+        results = performance_params(df_t1w.y_test.to_list(), df_t1w.y_score.to_list())
+        results["functional_test"] = [_func_test]
+        results["modality"] = "MPRAGE"
+    results
     return
 
 
