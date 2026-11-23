@@ -24,7 +24,7 @@ def setup_1():
         chisquare,
         t,
     )
-    from test_functions import run_test, performance_params
+    from test_functions import run_test, performance_params, youden_thresholds
 
 
     ### Read config for paths
@@ -73,6 +73,10 @@ def setup_1():
     def progression_col(testname):
         return f"worst_progressor_2ycutoff_{testname}_2z"
 
+    # Identify patients for ES and DE
+    pat_ids_es = baseline_characteristics_df.query("site == 326").mpi.to_list()
+    pat_ids_de = baseline_characteristics_df.query("site in [346,396]").mpi.to_list()
+    pat_ids_eu = pat_ids_de + pat_ids_es
     return (
         Path,
         baseline_characteristics_df,
@@ -94,7 +98,13 @@ def setup_1():
         run_test,
         t,
         tests,
+        youden_thresholds,
     )
+
+
+@app.cell
+def _():
+    return
 
 
 @app.cell(hide_code=True)
@@ -1243,7 +1253,11 @@ def _(batchsize, eval_dir, imagesize, join, pd, tests):
     # Apply rounding
     youden_df[numeric_cols] = youden_df[numeric_cols].round(4)
 
-    youden_df
+
+
+
+
+
     return
 
 
@@ -1336,7 +1350,7 @@ def _(Path, columns, data_dir, pd, run_test):
     df_flair.loc[df_flair.name.str.contains("_cst"), "name"] = "CST"
     df_flair.loc[df_flair.name.str.contains("_wst"), "name"] = "WST"
     df_flair.loc[df_flair.name.str.contains("_mdt"), "name"] = "MDT"
-    return
+    return (df_flair,)
 
 
 @app.cell
@@ -1346,15 +1360,77 @@ def _(df_t1w):
 
 
 @app.cell
-def _(df_t1w, performance_params):
+def _(df_flair, df_t1w, pd, performance_params):
 
     # Iterate over all function tests
+
+    df_performance = pd.DataFrame()
     for _func_test in set(df_t1w.name.to_list()):
-    
-        results = performance_params(df_t1w.y_test.to_list(), df_t1w.y_score.to_list())
-        results["functional_test"] = [_func_test]
-        results["modality"] = "MPRAGE"
-    results
+        for _country in ["eu", "de", "es"]:
+            _data = df_t1w.query(f'eid in @pat_ids_{_country} and `name` == "{_func_test}"')
+
+            _results = performance_params(_data.y_test.to_list(), _data.y_score.to_list())
+            _results["country"] = [_country.upper()]
+            _results["functional_test"] = [_func_test]
+            _results["modality"] = "MPRAGE"
+            df_performance = pd.concat((df_performance, pd.DataFrame(_results)), ignore_index=True)
+
+
+    for _func_test in set(df_flair.name.to_list()):
+        for _country in ["eu", "de", "es"]:
+            _data = df_flair.query(f'eid in @pat_ids_{_country} and `name` == "{_func_test}"')
+
+            _results = performance_params(_data.y_test.to_list(), _data.y_score.to_list())
+            _results["country"] = [_country.upper()]
+            _results["functional_test"] = [_func_test]
+            _results["modality"] = "FLAIR"
+            df_performance = pd.concat((df_performance, pd.DataFrame(_results)), ignore_index=True)
+
+
+    # print(df_performance.columns)
+    df_performance[['modality', 'functional_test', 'country', 'auroc', 'auprc', 'sensitivity', 'specifity', 'ppv', 'npv' ]]
+    return
+
+
+@app.cell
+def _(df_flair, df_t1w, pd, youden_thresholds):
+    #### 
+
+    df_youden = pd.DataFrame()
+
+    for _func_test in set(df_t1w.name.to_list()):
+        for _country in ["eu", "de", "es"]:
+            _data = df_t1w .query(f'eid in @pat_ids_{_country} and `name` == "{_func_test}"')
+            _results = youden_thresholds(_data.y_test.to_list(), _data.y_score.to_list())
+
+            _results["country"] = [_country.upper()]
+            _results["functional_test"] = [_func_test]
+            _results["modality"] = ["MPRAGE"]
+
+            df_youden = pd.concat((df_youden, pd.DataFrame(_results)), ignore_index=True)
+
+    for _func_test in set(df_flair.name.to_list()):
+        for _country in ["eu", "de", "es"]:
+            _data = df_t1w .query(f'eid in @pat_ids_{_country} and `name` == "{_func_test}"')
+            _results = youden_thresholds(_data.y_test.to_list(), _data.y_score.to_list())
+
+            _results["country"] = [_country.upper()]
+            _results["functional_test"] = [_func_test]
+            _results["modality"] = ["FLAIR"]
+
+            df_youden = pd.concat((df_youden, pd.DataFrame(_results)), ignore_index=True)
+
+    df_youden["Classification Rule"] = (
+        "Score ≥ "
+        + df_youden["youden_threshold"].round(4).astype(str)
+        + " → High Risk"
+    )
+
+    # format float-values
+    for _col in ['youden_threshold', 'youden_sensitivity', 'youden_specificity', 'youden_index']:
+        df_youden[_col] = df_youden[_col].map('{:.4f}'.format)
+
+    df_youden[['modality', 'functional_test', 'country', 'youden_threshold', 'youden_sensitivity', 'youden_specificity', 'youden_index', 'Classification Rule']]
     return
 
 
